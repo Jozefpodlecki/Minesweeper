@@ -1,5 +1,6 @@
 {
   "name": "minesweeper",
+  "author": "Jozef Podlecki",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
