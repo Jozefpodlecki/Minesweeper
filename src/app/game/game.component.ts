@@ -3,13 +3,8 @@ import { faBomb, faFlag, faSyncAlt, faSmile, faFrown } from '@fortawesome/free-s
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { Cell } from 'src/models/Cell';
 import { MinesweeperService } from 'src/minesweeper-service/minesweeper.service';
-
-enum GameState {
-  game,
-  won,
-  lost,
-  loading
-}
+import { GameState } from 'src/models/GameState';
+import { GameOptions } from 'src/models/GameOptions';
 
 @Component({
   selector: 'game',
@@ -33,16 +28,22 @@ export class GameComponent implements OnInit {
   state: GameState;
   disabled: boolean;
   GameState = GameState;
+  numberOfBombs: number;
 
   constructor(private _minesweeperService: MinesweeperService) {
+    this.numberOfBombs = 10;
     this.initialize();
   }
 
   initialize() {
     this.disabled = true;
     this.state = GameState.loading;
-    
-    this._minesweeperService.initializeBoard().then(board => {
+    const options: GameOptions = {
+      randomizer: () => Boolean(Math.floor(Math.random() * 2)),
+      numberOfBombs: this.numberOfBombs
+    }
+
+    this._minesweeperService.initializeBoard(options).then(board => {
       this.board = board;
       this.state = GameState.game;
       this.disabled = false;
@@ -92,7 +93,7 @@ export class GameComponent implements OnInit {
     const allFlagged = !this.board.some(({hasBomb, isFlagged}) => hasBomb !== isFlagged);
 
     if(allFlagged && allRevealed) {
-      this.state = GameState.won;
+      this.setState(GameState.won);
     }
   }
 
@@ -102,14 +103,27 @@ export class GameComponent implements OnInit {
     event.preventDefault();
   }
 
+  onNumberOfBombsChange(value: string) {
+    this.numberOfBombs = Number(value);
+    this.initialize();
+  }
+
   gameOver() {
     this.disabled = true;
     for(let cell of this.board) {
       cell.isRevealed = true;
     }
+    this.setState(GameState.lost);
+  }
+
+  setState(state: GameState) {
     setTimeout(() => {
-      this.state = GameState.lost;
-    }, 1000)
+      this.state = state;
+    }, 2000)
+  }
+
+  trackById(index: number, cell: Cell){
+    return cell.id; 
   }
 
 }

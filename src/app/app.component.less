@@ -4,6 +4,10 @@
     height: inherit;
 }
 
+@black: black;
+@white: white;
+@gray: gray;
+
 .background {
     background: url('/assets/background.png') center center / cover no-repeat;
     position: absolute;
@@ -20,4 +24,22 @@
 .footer {
     flex: 0 0 auto;
     padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: @black;
+
+    &__signature {
+        font-size: 1.5rem;
+    }
+
+    &__socialLink {
+        padding: .5rem;
+        color: @white;
+        transition: color .3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+        &:hover {
+            color: @gray;
+        }
+    }
 }

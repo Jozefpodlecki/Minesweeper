@@ -7,6 +7,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { GameComponent } from './game/game.component';
 import { MinesweeperService } from '../minesweeper-service/minesweeper.service';
+import { ProfileService } from 'src/profile-service/profile-service';
 
 @NgModule({
   declarations: [
@@ -19,7 +20,7 @@ import { MinesweeperService } from '../minesweeper-service/minesweeper.service';
     FontAwesomeModule,
     BrowserAnimationsModule
   ],
-  providers: [MinesweeperService],
+  providers: [MinesweeperService, ProfileService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
