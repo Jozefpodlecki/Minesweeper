@@ -1,0 +1,12 @@
+<div class="background"></div>
+<div class="content">
+    <router-outlet></router-outlet>
+</div>
+<footer class="footer">
+    <div class="footer__signature">{{signature}}</div>
+    <div class="footer__social">
+        <a class="footer__socialLink" [href]="socialItem.href" *ngFor="let socialItem of social">
+            <fa-icon [icon]="socialItem.icon" size="2x"></fa-icon>
+        </a>
+    </div>
+</footer>

@@ -1,0 +1,50 @@
+<div class="game__header">Minesweeper</div>
+<div [ngSwitch]="state" class="game">
+    <div [@enterTrigger]="'loading'" class="game__loading" *ngSwitchCase="GameState.loading">
+        <div>Loading</div>
+        <div>
+            <fa-icon [icon]="faBomb" size="2x"></fa-icon>
+            <fa-icon [icon]="faBomb" size="2x"></fa-icon>
+            <fa-icon [icon]="faBomb" size="2x"></fa-icon>
+        </div>
+    </div>
+    <div [@enterTrigger]="'game'" *ngSwitchCase="GameState.game" [class.game__grid--disabled]="disabled" class="game__grid">
+        <div [ngSwitch]="computeState(cell)" class="game__cell" (click)="click(cell)"
+            (contextmenu)="onRightClick(cell, $event)" *ngFor="let cell of board; trackBy: trackById">
+            <div class="number" *ngSwitchCase="'count'" [@enterTrigger]="'number'">{{cell.bombCount}}</div>
+            <fa-icon *ngSwitchCase="'bomb'" [icon]="faBomb" size="2x" [@enterTrigger]="'bomb'"></fa-icon>
+            <fa-icon *ngSwitchCase="'flag'" [icon]="faFlag" size="2x"></fa-icon>
+            <div class="revealed" *ngSwitchCase="'revealed'" [@enterTrigger]="'revealed'"></div>
+        </div>
+    </div>
+    <div (contextmenu)="$event.preventDefault()" [@enterTrigger]="'won'" class="game__statusWrapper" *ngSwitchCase="GameState.won">
+        <div class="game__status">
+            <span class="game__statusHeader">You won</span>
+            <fa-icon [icon]="faSmile" size="4x"></fa-icon>
+        </div>
+        <div (contextmenu)="initialize()" class="game__playAgain">
+            <span class="game__playAgainText">Play again</span>
+            <fa-icon [icon]="faBomb" size="2x"></fa-icon>
+        </div>
+    </div>
+    <div (click)="$event.preventDefault()" [@enterTrigger]="'lost'" class="game__statusWrapper" *ngSwitchCase="GameState.lost">
+        <div class="game__status">
+            <div class="game__statusHeader">You lost</div>
+            <fa-icon [icon]="faFrown" size="4x"></fa-icon>
+        </div>
+        <div (click)="initialize()" class="game__playAgain">
+            <span class="game__playAgainText">Play again</span>
+            <fa-icon [icon]="faBomb" size="2x"></fa-icon>
+        </div>
+    </div>
+</div>
+<div class="actions">
+    <div (click)="gameOver()" class="actions__give-up" [class.actions__give-up--disabled]="state !== GameState.game" >I give up</div>
+    <div class="actions__reset" (click)="initialize()">
+        <fa-icon [icon]="faSyncAlt" size="2x"></fa-icon>
+    </div>
+</div>
+<div class="options">
+    <label class="options__label" for="numberOfBombs">Number of bombs</label>
+    <input class="options__input" name="numberOfBombs" type="number" (change)="onNumberOfBombsChange($event.target.value)" [value]="numberOfBombs" min="1" max="50">
+</div>
