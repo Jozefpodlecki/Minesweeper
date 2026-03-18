@@ -6,6 +6,7 @@ mod app_state;
 mod api;
 mod models;
 mod pages;
+mod game;
 mod components;
 mod route;
 
