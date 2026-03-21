@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use gloo::console::info;
 use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
@@ -97,12 +98,11 @@ impl GameState {
 
         let mut cells = Self::initialize_cells(rows, cols);
 
-        Self::Playing {
+        Self::Initializing {
             cells,
             rows,
             cols,
             mines_count,
-            revealed_count: 0,
             started_at: Utc::now()
         }
     }
@@ -158,6 +158,83 @@ impl GameState {
             } else if cells[idx].neighbor_mines == 0 {
 
             }
+        }
+    }
+
+    pub fn toggle_flag(self, row: usize, col: usize) -> Self {
+
+        self
+    }
+
+    pub fn reveal(self, row: usize, col: usize) -> Self {
+        match self {
+            Self::Playing {
+                mut cells,
+                rows,
+                cols,
+                mines_count,
+                mut revealed_count,
+                started_at,
+            } => {
+                info!("playing");
+                let idx = row * cols + col;
+
+                if idx >= cells.len() || cells[idx].is_flagged {
+                    return Self::Playing {
+                        cells,
+                        rows,
+                        cols,
+                        mines_count,
+                        revealed_count,
+                        started_at,
+                    };
+                }
+
+                if cells[idx].is_mine {
+                    cells[idx].is_revealed = true;
+
+                    return Self::GameOver {
+                        has_won: false,
+                        duration: Utc::now() - started_at,
+                        cells,
+                        rows,
+                        cols,
+                        started_at,
+                    };
+                }
+
+                Self::reveal_cell_internal(
+                    &mut cells,
+                    &mut revealed_count,
+                    rows,
+                    cols,
+                    row,
+                    col,
+                );
+
+                let total_safe = rows * cols - mines_count;
+
+                if revealed_count == total_safe {
+                    return Self::GameOver {
+                        has_won: true,
+                        duration: Utc::now() - started_at,
+                        cells,
+                        rows,
+                        cols,
+                        started_at,
+                    };
+                }
+
+                Self::Playing {
+                    cells,
+                    rows,
+                    cols,
+                    mines_count,
+                    revealed_count,
+                    started_at,
+                }
+            }
+            _ => self,
         }
     }
 

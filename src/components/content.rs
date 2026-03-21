@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 use gloo::{storage::{LocalStorage, Storage}, utils::errors::JsError};
+use log::info;
 use rand::{rng, seq::SliceRandom, RngExt};
 use serde::{Deserialize, Serialize};
 use web_sys::{window, HtmlElement};
@@ -91,27 +92,44 @@ pub fn content(props: &Props) -> Html {
         let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            // let new_state = match current_state {
-            //     GameState::Playing { cells, .. } => {
-            //         let has_mines = cells.iter().any(|c| c.is_mine);
-                    
-            //         if !has_mines {
-            //             current_state.initialize_with_first_click(row, col)
-            //         } else {
-            //             current_state.reveal_cell(row, col)
-            //         }
-            //     },
-            //     _ => current_state,
-            // };
+            unsafe {
+                let current_target = event.target().unwrap_unchecked();
+                let html_element = current_target.unchecked_into::<HtmlElement>();
+                let dataset = html_element.dataset();
+
+                let row = dataset.get("row").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
+                let column = dataset.get("column").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
+                let new_state = (*game_state).clone();
+
+                let next_state = match &new_state {
+                    GameState::Initializing { .. } => {
+                        let initialized = new_state.initialize_with_first_click(row, column);
+                        initialized.reveal(row, column)
+                    }
+                    _ => new_state,
+                };
+
+                info!("reveal");
+                game_state.set(next_state.reveal(row, column));
+            }
         })
     };
 
-    let on_mark: Callback<MouseEvent> = {
+    let on_toggle_flag: Callback<MouseEvent> = {
+        let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            let current_target = event.current_target().unwrap();
-            let html_element = current_target.unchecked_into::<HtmlElement>();
-            let dataset = html_element.dataset();
+            unsafe {
+                let current_target = event.target().unwrap_unchecked();
+                let html_element = current_target.unchecked_into::<HtmlElement>();
+                let dataset = html_element.dataset();
+                let row = dataset.get("row").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
+                let column = dataset.get("column").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
+                let new_state = (*game_state).clone();
+
+                info!("on_toggle_flag");
+                game_state.set(new_state.toggle_flag(row, column));
+            }
         })
     };
 
@@ -147,7 +165,7 @@ pub fn content(props: &Props) -> Html {
                             <GameCellComponent
                                 cell={cell.clone()}
                                 on_reveal={on_reveal.clone()}
-                                on_mark={on_mark.clone()}
+                                on_toggle_flag={on_toggle_flag.clone()}
                                 disabled={false}
                             />
                         }

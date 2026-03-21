@@ -8,30 +8,15 @@ use yew_icons::{Icon, IconData};
 pub struct Props {
     pub cell: GameCell,
     pub on_reveal: Callback<MouseEvent>,
-    pub on_mark: Callback<MouseEvent>,
+    pub on_toggle_flag: Callback<MouseEvent>,
     pub disabled: bool,
 }
 
 #[function_component(GameCellComponent)]
 pub fn game_cell(props: &Props) -> Html {
-     let cell = &props.cell;
+    let cell = &props.cell;
     let row = cell.row_id;
     let col = cell.column_id;
-    
-    // let on_click: Callback<MouseEvent> = {
-    //     let on_reveal = props.on_reveal.clone();
-    //     Callback::from(move |_| {
-    //         on_reveal.emit((row, col));
-    //     })
-    // };
-    
-    // let on_contextmenu = {
-    //     let on_mark = props.on_mark.clone();
-    //     Callback::from(move |e: MouseEvent| {
-    //         e.prevent_default();
-    //         on_mark.emit((row, col));
-    //     })
-    // };
     
     let base_class = "w-10 h-10 flex items-center justify-center font-bold transition-colors";
     let state_class = if props.disabled {
@@ -83,7 +68,7 @@ pub fn game_cell(props: &Props) -> Html {
             key={format!("{}-{}", row, col)}
             class={classes}
             onclick={props.on_reveal.clone()}
-            oncontextmenu={props.on_mark.clone()}
+            oncontextmenu={props.on_toggle_flag.clone()}
             disabled={props.disabled}
         >
             { content }

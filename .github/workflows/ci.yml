@@ -18,4 +18,5 @@ jobs:
             ~/.cargo/registry
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: dtolnay/rust-toolchain@1.94.0
       - run: cargo test
