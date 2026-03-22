@@ -4,6 +4,9 @@ mod content;
 mod loader;
 mod cell;
 mod records;
+mod settings;
+mod screenshot;
+mod layout;
 mod error;
 
 pub use background::*;
@@ -12,4 +15,7 @@ pub use footer::*;
 pub use loader::*;
 pub use cell::*;
 pub use records::*;
+pub use settings::*;
+pub use screenshot::*;
+pub use layout::*;
 pub use error::*;

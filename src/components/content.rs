@@ -16,6 +16,44 @@ pub struct Props {
     pub class: String
 }
 
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct GameOverProps {
+    pub has_won: bool,
+    pub on_play: Callback<MouseEvent>
+}
+
+#[function_component(GameOver)]
+pub fn game_over(props: &GameOverProps) -> Html {
+
+    let GameOverProps { has_won, on_play } = props.clone();
+
+    let result = if has_won {
+        html! { <span>{"You won"} </span> }
+    } else {
+        html! { <span>{"You lost" }</span> }
+    };
+
+    html! {
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-black/80 p-10 rounded shadow-lg flex flex-col items-center gap-4 w-100">
+                <span>{"Game over!"}</span>
+                {result}
+
+                <button
+                    type="button"
+                    onclick={on_play}
+                    class="flex gap-2 items-center border p-2"
+                >
+                    <span>{"Play again"}</span>
+                    <Icon data={IconData::LUCIDE_PLAY} width={"20px"}/>
+                </button>
+
+                <Records/>
+            </div>
+        </div>
+    }
+}
+
 #[function_component(Content)]
 pub fn content(props: &Props) -> Html {
     
@@ -114,7 +152,7 @@ pub fn content(props: &Props) -> Html {
                             <div style={grid_style}>
                                 { rendered_cells }
                             </div>
-                            <button  type="button" onclick={on_play} class="flex">
+                            <button type="button" onclick={on_play} class="flex">
                                 <span>{"Reset"}</span>
                                 <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                             </button>
@@ -139,26 +177,12 @@ pub fn content(props: &Props) -> Html {
                         }
                     }).collect::<Html>();
 
-                    let result = if *has_won {
-                        html! { <span>{"You won"}</span> }
-                    } else {
-                        html! { <span>{"You lost"}</span> }
-                    };
-
                     html! {
                         <main class="flex flex-col text-white">
                             <div style={grid_style}>
                                 { rendered_cells }
                             </div>
-                            <div class="absolute bg-black/50 p-10">
-                                <span class="">{"Game over!"}</span>
-                                {result}
-                                <button type="button" onclick={on_play} class="flex gap-2 items-center border p-2">
-                                    <span>{"Play again"}</span>
-                                    <Icon data={IconData::LUCIDE_PLAY} width={"20px"}/>
-                                </button>
-                                <Records/>
-                            </div>
+                            <GameOver has_won={has_won} on_play={&on_play} />
                         </main>
                     }
                 },

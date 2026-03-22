@@ -8,13 +8,13 @@ use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
-use crate::{api::ApiClient, components::{Background, Error, Loader}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, utils::set_document_version};
+use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, utils::set_document_version};
 
 async fn fetch_social(app_state: UseStateHandle<AppState>) {
     app_state.set(AppState::Loading);
-    app_state.set(AppState::Error(AppError::failed_to_build_request("test".into())));
-    
-    sleep(Duration::from_secs(2000)).await;
+    // app_state.set(AppState::Error(AppError::failed_to_build_request("test".into())));
+    // sleep(Duration::from_secs(2000)).await;
+
     let client = ApiClient::new();
 
     match client.get_social().await {
@@ -61,29 +61,31 @@ pub fn app() -> Html {
     match &*app_state {
         AppState::Loading => {
             html! {
-                <>
-                    <Background src="public/background.jpg"/>
+                <Layout>
                     <article data-loading="" class="flex w-full h-full justify-center items-center" ontransitionend={on_transition_end}>
                         <Loader/>
                     </article>
-                </>
+                </Layout>
             }
         },
         AppState::Error(error) => {
             html! {
-                <>
-                    <Background src="public/background.jpg"/>
+                <Layout>
                     <Error error={error.clone()} on_retry={on_retry}/>
-                </>
+                </Layout>
             }
         },
         AppState::Loaded(social) => {
             html! {
                 <ContextProvider<Repository> context={repository}>
                     <ContextProvider<Social> context={social.clone()}>
-                        <HashRouter>
-                            <Switch<Route> render={switch} />
-                        </HashRouter>
+                        <Layout>
+                            <Settings/>
+                            <Screenshot/>
+                            <HashRouter>
+                                <Switch<Route> render={switch} />
+                            </HashRouter>
+                        </Layout>
                     </ContextProvider<Social>>
                 </ContextProvider<Repository>>
             }

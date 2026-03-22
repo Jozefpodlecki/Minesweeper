@@ -4,6 +4,7 @@ use web_sys::{DomStringMap, HtmlElement};
 use yew::MouseEvent;
 
 pub trait DomStringMapExtensions {
+    fn get_unchecked(&self, key: &str) -> String;
     fn parse_unchecked<T: FromStr>(&self, key: &str) -> T;
 }
 
@@ -16,6 +17,10 @@ impl DomStringMapExtensions for DomStringMap {
                 .ok()
                 .unwrap_unchecked()
         }
+    }
+    
+    fn get_unchecked(&self, key: &str) -> String {
+        unsafe { self.get(key).unwrap_unchecked() }
     }
 }
 

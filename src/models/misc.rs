@@ -35,3 +35,18 @@ pub struct Record {
     pub revealed_mines: u32,
     pub total_mines: u32
 }
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GameDifficulty {
+    #[default]
+    Easy,
+    Medium,
+    Hard
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Settings {
+    pub difficulty: GameDifficulty,
+    pub background_url: Option<String>,
+    pub persist_game: bool
+}

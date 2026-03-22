@@ -5,121 +5,47 @@ use gloo::console::info;
 use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
-pub trait SystemClock {
-    
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub enum CellState {
-    #[default]
-    Hidden,
-    Revealed,
-    Flagged,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct GameCell {
-    pub key: String,
-    pub row_id: usize,
-    pub column_id: usize,
-    pub row: String,
-    pub column: String,
-    pub is_mine: bool,
-    pub state: CellState,
-    pub neighbor_mines: u8,
-}
-
-pub struct Grid(Vec<Vec<GameCell>>);
-
-impl GameCell {
-    fn new(row_id: usize, column_id: usize) -> Self {
-        Self {
-            key: format!("{}-{}", row_id, column_id),
-            row_id,
-            column_id,
-            row: row_id.to_string(),
-            column: column_id.to_string(),
-            is_mine: false,
-            state: Default::default(),
-            neighbor_mines: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SavedGameState {
-    pub cells: Vec<GameCell>,
-    pub rows: usize,
-    pub cols: usize,
-    pub mines_count: usize,
-    pub revealed_count: usize, 
-    pub started_at: DateTime<Utc>,
-}
+use crate::{game::*, services::{DefaultSystemClock, SystemClock}};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum GameState {
-    Idle,
-    Initializing {
-        cells: Vec<GameCell>,
-        rows: usize,
-        cols: usize,
-        mines_count: usize,
-        started_at: DateTime<Utc>,
-    },
-    Playing {
-        cells: Vec<GameCell>,
-        rows: usize,
-        cols: usize,
-        mines_count: usize,
-        revealed_count: usize, 
-        started_at: DateTime<Utc>,
-    },
-    GameOver {
-        has_won: bool,
-        cells: Vec<GameCell>,
-        rows: usize,
-        cols: usize,
-        duration: Duration,
-        started_at: DateTime<Utc>,
-        mines_count: usize,
-        revealed_count: usize, 
-    }
+pub struct GameState<SC: SystemClock> {
+    clock: SC,
+    inner: GamePhase
 }
 
-pub struct GameSettings {
-    pub rows: usize,
-    pub cols: usize,
-    pub mines_count: usize
-}
-
-impl Default for GameSettings {
-    fn default() -> Self {
+impl GameState<DefaultSystemClock> {
+    pub fn default() -> Self {
         Self {
-            rows: 15,
-            cols: 15,
-            mines_count: 2
+            clock: DefaultSystemClock::default(),
+            inner: GamePhase::default(),
         }
-    }
-}
-
-impl GameState {
-    pub fn new() -> Self {
-        Self::Idle
     }
 
     pub fn game_over(has_won: bool) -> Self {
         
         let cells = Self::initialize_cells(15, 15);
 
-        Self::GameOver {
-            has_won,
-            cells,
-            rows: 15,
-            cols: 15,
-            duration: Duration::seconds(10),
-            started_at: Utc::now(),
-            mines_count: 5,
-            revealed_count: 10
+        Self {
+            clock: DefaultSystemClock::default(),
+            inner: GamePhase::GameOver {
+                has_won,
+                cells,
+                rows: 15,
+                cols: 15,
+                duration: Duration::seconds(10),
+                started_at: Utc::now(),
+                mines_count: 5,
+                revealed_count: 10
+            },
+        }
+    }
+}
+
+impl<SC: Clone + SystemClock> GameState<SC> {
+    pub fn new(clock: SC) -> Self {
+        Self {
+            clock,
+            inner: GamePhase::default(),
         }
     }
 
@@ -133,18 +59,20 @@ impl GameState {
 
         let cells = Self::initialize_cells(rows, cols);
 
-        Self::Initializing {
-            cells,
-            rows,
-            cols,
-            mines_count,
-            started_at: Utc::now()
+        Self {
+            clock: self.clock.clone(),
+            inner: GamePhase::Initializing {
+                cells,
+                rows,
+                cols,
+                mines_count
+            },
         }
     }
 
     pub fn initialize_with_first_click(self, click_row: usize, click_col: usize) -> Self {
-        match self {
-            Self::Initializing { mut cells, rows, cols, mines_count, started_at } => {
+        let inner = match self.inner {
+            GamePhase::Initializing { mut cells, rows, cols, mines_count} => {
                 let first_idx = click_row * cols + click_col;
                 
                 Self::setup_mines(&mut cells, mines_count, first_idx);
@@ -154,16 +82,21 @@ impl GameState {
                 Self::calculate_neighbor_counts(&mut cells, rows, cols);
                 Self::reveal_cell_internal(&mut cells, &mut revealed_count, rows, cols, click_row, click_col);
                 
-                Self::Playing {
+                GamePhase::Playing {
                     cells,
                     rows,
                     cols,
                     mines_count,
                     revealed_count,
-                    started_at,
+                    started_at: self.clock.utc_now(),
                 }
             },
-            _ => self,
+            _ => self.inner,
+        };
+
+        Self {
+            clock: self.clock.clone(),
+            inner
         }
     }
 
@@ -262,8 +195,9 @@ impl GameState {
     }
 
     pub fn toggle_flag(&self, row: usize, col: usize) -> Self {
-        match self.clone() {
-            Self::Playing {
+        
+        let inner = match self.inner {
+            GamePhase::Playing {
                 mut cells,
                 rows,
                 cols,
@@ -274,7 +208,7 @@ impl GameState {
                 let idx = row * cols + col;
 
                 if idx >= cells.len() {
-                    return Self::Playing {
+                    return GamePhase::Playing {
                         cells,
                         rows,
                         cols,
@@ -290,7 +224,7 @@ impl GameState {
                     CellState::Revealed => CellState::Revealed,
                 };
 
-                Self::Playing {
+                GamePhase::Playing {
                     cells,
                     rows,
                     cols,
@@ -300,6 +234,11 @@ impl GameState {
                 }
             }
             _ => self.clone(),
+        };
+
+        Self {
+            clock: self.clock.clone(),
+            inner
         }
     }
 
@@ -316,7 +255,7 @@ impl GameState {
                 let idx = row * cols + col;
 
                 if idx >= cells.len() || matches!(cells[idx].state, CellState::Flagged) {
-                    return Self::Playing {
+                    return GamePhase::Playing {
                         cells,
                         rows,
                         cols,
@@ -329,7 +268,7 @@ impl GameState {
                 if cells[idx].is_mine {
                     cells[idx].state = CellState::Revealed;
 
-                    return Self::GameOver {
+                    return GamePhase::GameOver {
                         has_won: false,
                         duration: Utc::now() - started_at,
                         cells,
@@ -353,7 +292,7 @@ impl GameState {
                 let total_safe = rows * cols - mines_count;
 
                 if revealed_count == total_safe {
-                    return Self::GameOver {
+                    return GamePhase::GameOver {
                         has_won: true,
                         duration: Utc::now() - started_at,
                         cells,
@@ -365,7 +304,7 @@ impl GameState {
                     };
                 }
 
-                Self::Playing {
+                GamePhase::Playing {
                     cells,
                     rows,
                     cols,
@@ -378,17 +317,17 @@ impl GameState {
         }
     }
 
-    fn initialize_cells(rows: usize, cols: usize,) -> Vec<GameCell> {
+    fn initialize_cells(rows: usize, cols: usize,) -> Box<[GameCell]> {
         let total_cells = rows * cols;
         let mut cells = Vec::with_capacity(total_cells);
 
         for row in 0..rows {
             for col in 0..cols {
-                cells.push(GameCell::new(row, col));
+                cells.push(GameCell::new(row, col, cols));
             }
         }
 
-        cells
+        cells.into()
     }
 
     fn setup_mines(cells: &mut [GameCell], mines_count: usize, forbidden_idx: usize) {
@@ -441,8 +380,8 @@ impl GameState {
 
     fn to_state(self) -> SavedGameState {
 
-        match self {
-            GameState::GameOver {
+        match self.inner {
+            GamePhase::GameOver {
                 has_won,
                 cells,
                 rows,
