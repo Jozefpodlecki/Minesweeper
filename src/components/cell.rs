@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use yew_router::prelude::Link;
 
-use crate::{game::GameCell, models::Social, route::Route};
+use crate::{game::{CellState, GameCell}, models::Social, route::Route};
 use yew_icons::{Icon, IconData};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -14,62 +14,53 @@ pub struct Props {
 
 #[function_component(GameCellComponent)]
 pub fn game_cell(props: &Props) -> Html {
-    let cell = &props.cell;
-    let row = cell.row_id;
-    let col = cell.column_id;
-    
+    let Props {
+        cell,
+        disabled,
+        on_reveal,
+        on_toggle_flag
+    } = props;
+
     let base_class = "w-10 h-10 flex items-center justify-center font-bold transition-colors";
-    let state_class = if props.disabled {
-        if cell.is_mine {
-            "bg-red-500"
-        } else {
-            "bg-gray-300"
+
+    let (state, classes, content) = match cell.state {
+        CellState::Revealed => {
+            let content = if cell.is_mine {
+                html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }
+            } else if cell.neighbor_mines > 0 {
+                html! { cell.neighbor_mines.to_string() }
+            } else {
+                html! {}
+            };
+
+            let classes = format!("{} cursor-default bg-gray-100 text-black", base_class);
+
+            ("revealed", classes, content)
         }
-    } else if cell.is_revealed {
-        if cell.is_mine {
-            "bg-red-500"
-        } else {
-            "bg-gray-300"
+
+        CellState::Hidden => {
+            let classes = format!("{} bg-gray-300 text-black", base_class);
+            ("hidden", classes, html! {})
         }
-    } else if cell.is_flagged {
-        "bg-blue-300 hover:bg-blue-400"
-    } else {
-        "bg-gray-500 hover:bg-gray-400 cursor-pointer"
-    };
-    
-    let text_color = if cell.is_revealed && !cell.is_mine {
-        match cell.neighbor_mines {
-            1 => "text-blue-700",
-            2 => "text-green-700",
-            3 => "text-red-700",
-            4 => "text-purple-700",
-            _ => "text-gray-900",
+
+        CellState::Flagged => {
+            let classes = format!("{} bg-gray-300 text-black pointer-events-none", base_class);
+            let content = html! {
+                <Icon data={IconData::LUCIDE_FLAG} width={"20px"} />
+            };
+            ("flagged", classes, content)
         }
-    } else {
-        ""
     };
-    
-    let content = if cell.is_revealed && !cell.is_mine && cell.neighbor_mines > 0 {
-        cell.neighbor_mines.to_string()
-    } else if cell.is_revealed && cell.is_mine {
-        "💣".to_string()
-    } else if cell.is_flagged && !props.disabled {
-        "🚩".to_string()
-    } else {
-        "".to_string()
-    };
-    
-    let classes = format!("{} {} {}", base_class, state_class, text_color);
-    
+
     html! {
         <button
-            data-row={row.to_string()}
-            data-column={col.to_string()}
-            key={format!("{}-{}", row, col)}
+            data-state={state}
+            data-row={cell.row.clone()}
+            data-column={cell.column.clone()}
+            key={cell.key.clone()}
             class={classes}
-            onclick={props.on_reveal.clone()}
-            oncontextmenu={props.on_toggle_flag.clone()}
-            disabled={props.disabled}
+            onclick={&props.on_reveal}
+            oncontextmenu={&props.on_toggle_flag}
         >
             { content }
         </button>

@@ -1,12 +1,23 @@
+use std::time::Duration;
+
+use gloo::timers::future::sleep;
+use log::info;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{window, HtmlElement};
 use yew::*;
+use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
-use crate::{api::get_social, components::Loader, models::{AppState, Social}, route::{switch, Route}};
+use crate::{api::ApiClient, components::{Background, Error, Loader}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, utils::set_document_version};
 
 async fn fetch_social(app_state: UseStateHandle<AppState>) {
     app_state.set(AppState::Loading);
+    app_state.set(AppState::Error(AppError::failed_to_build_request("test".into())));
+    
+    sleep(Duration::from_secs(2000)).await;
+    let client = ApiClient::new();
 
-    match get_social().await {
+    match client.get_social().await {
         Ok(social) => {
             app_state.set(AppState::Loaded(social));
         }
@@ -18,32 +29,63 @@ async fn fetch_social(app_state: UseStateHandle<AppState>) {
 
 #[function_component(App)]
 pub fn app() -> Html {
-    let app_state = use_state(|| AppState::default() );
+    let app_state = use_state(AppState::default);
+    let repository = Repository::new();
+    use_effect_with((), set_document_version);
 
-     {
+    {
         let app_state = app_state.clone();
         use_effect_with(
             (),
-            move |_| {
-                wasm_bindgen_futures::spawn_local(fetch_social(app_state.clone()));
-            },
+            move |_| wasm_bindgen_futures::spawn_local(fetch_social(app_state)),
         );
     }
 
-    match (*app_state).clone() {
+    let on_transition_end: Callback<TransitionEvent> = {
+        
+
+        Callback::from(move |event: TransitionEvent| {
+            info!("TransitionEvent")
+        })
+    };
+
+    let on_retry: Callback<MouseEvent> = {
+        let app_state = app_state.clone();
+
+        Callback::from(move |event: MouseEvent| {
+            let app_state = app_state.clone();
+            wasm_bindgen_futures::spawn_local(fetch_social(app_state))
+        })
+    };
+
+    match &*app_state {
         AppState::Loading => {
-            html! { <div></div> }
+            html! {
+                <>
+                    <Background src="public/background.jpg"/>
+                    <article data-loading="" class="flex w-full h-full justify-center items-center" ontransitionend={on_transition_end}>
+                        <Loader/>
+                    </article>
+                </>
+            }
         },
-        AppState::Error(fetch_error) => {
-            html! { <div></div> }
+        AppState::Error(error) => {
+            html! {
+                <>
+                    <Background src="public/background.jpg"/>
+                    <Error error={error.clone()} on_retry={on_retry}/>
+                </>
+            }
         },
         AppState::Loaded(social) => {
             html! {
-                <ContextProvider<Social> context={social}>
-                    <HashRouter>
-                        <Switch<Route> render={switch} />
-                    </HashRouter>
-                </ContextProvider<Social>>
+                <ContextProvider<Repository> context={repository}>
+                    <ContextProvider<Social> context={social.clone()}>
+                        <HashRouter>
+                            <Switch<Route> render={switch} />
+                        </HashRouter>
+                    </ContextProvider<Social>>
+                </ContextProvider<Repository>>
             }
         },
     }

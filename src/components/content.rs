@@ -8,83 +8,25 @@ use yew::{virtual_dom::VNode, *};
 use yew_router::prelude::Link;
 use wasm_bindgen::JsCast; 
 
-use crate::{components::GameCellComponent, game::{GameCell, GameState, SavedGameState}, models::Social, route::Route};
+use crate::{components::{GameCellComponent, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::{GameCell, GameState, Repository, SavedGameState}, models::Social, route::Route};
 use yew_icons::{Icon, IconData};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Record {
-    pub created_on: DateTime<Utc>,
-    pub duration: u32,
-    pub has_won: bool,
-    pub revealed_mines: u32,
-    pub total_mines: u32
-}
-
-pub fn get_last_state() -> Option<SavedGameState> {
-    let records = LocalStorage::get::<SavedGameState>("state");
-
-    records.ok()
-}
-
-pub fn save_state(value: SavedGameState) -> Result<(), JsError> {
-    LocalStorage::set("state", value)
-        .map_err(|err| {
-            let js_error = js_sys::Error::new(&err.to_string());
-            JsError::from(js_error)
-        })?;
-
-    Ok(())
-}
-
-pub fn get_last_records() -> Vec<Record> {
-    let records = LocalStorage::get::<Vec<Record>>("records");
-
-    records.unwrap_or_default()
-}
-
-pub fn set_last_record(value: Record) -> Result<(), JsError> {
-    let records = LocalStorage::get::<Vec<Record>>("records");
-    let mut records = records.unwrap_or_default();
-
-    records.push(value);
-
-    LocalStorage::set("records", records)
-        .map_err(|err| {
-            let js_error = js_sys::Error::new(&err.to_string());
-            JsError::from(js_error)
-        })?;
-
-    Ok(())
-}
-
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {
     pub class: String
 }
 
-#[function_component(Records)]
-pub fn records() -> Html {
-    let records = use_state(|| get_last_records() );
-
-    html! {
-        <div class="flex flex-col">
-            {(*records).clone().into_iter().map(|record: Record|  html! { <div></div> }).collect::<Html>()}
-        </div>
-    }
-}
-
 #[function_component(Content)]
 pub fn content(props: &Props) -> Html {
     
-    let game_state = use_state(|| GameState::new() );
+    let game_state = use_state(|| GameState::game_over(true) );
 
     let on_play: Callback<MouseEvent> = {
         let game_state = game_state.clone();
 
         Callback::from(move |_| {
-            let new_state = (*game_state).clone();
-            game_state.set(new_state.play(Default::default()));
+            let new_state = game_state.play(Default::default());
+            game_state.set(new_state);
         })
     };
 
@@ -92,26 +34,27 @@ pub fn content(props: &Props) -> Html {
         let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            unsafe {
-                let current_target = event.target().unwrap_unchecked();
-                let html_element = current_target.unchecked_into::<HtmlElement>();
-                let dataset = html_element.dataset();
+            let dataset = event.target_dataset_unchecked();
+            let row = dataset.parse_unchecked("row");
+            let column = dataset.parse_unchecked("column");
+            let new_state = (*game_state).clone();
 
-                let row = dataset.get("row").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
-                let column = dataset.get("column").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
-                let new_state = (*game_state).clone();
+            let next_state = match &new_state {
+                GameState::Initializing { .. } => {
+                    let initialized = new_state.initialize_with_first_click(row, column);
+                    initialized.reveal(row, column)
+                }
+                _ => new_state.reveal(row, column),
+            };
 
-                let next_state = match &new_state {
-                    GameState::Initializing { .. } => {
-                        let initialized = new_state.initialize_with_first_click(row, column);
-                        initialized.reveal(row, column)
-                    }
-                    _ => new_state,
-                };
-
-                info!("reveal");
-                game_state.set(next_state.reveal(row, column));
+            match &next_state {
+                GameState::GameOver { has_won, cells, rows, cols, duration, started_at, mines_count, revealed_count } => {
+                    info!("over");
+                },
+                _ => {}
             }
+
+            game_state.set(next_state);
         })
     };
 
@@ -119,24 +62,19 @@ pub fn content(props: &Props) -> Html {
         let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            unsafe {
-                let current_target = event.target().unwrap_unchecked();
-                let html_element = current_target.unchecked_into::<HtmlElement>();
-                let dataset = html_element.dataset();
-                let row = dataset.get("row").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
-                let column = dataset.get("column").unwrap_unchecked().parse::<usize>().unwrap_unchecked();
-                let new_state = (*game_state).clone();
+            let dataset = event.target_dataset_unchecked();
+                let row = dataset.parse_unchecked("row");
+                let column = dataset.parse_unchecked("column");
+                let new_state = game_state.toggle_flag(row, column);
 
-                info!("on_toggle_flag");
-                game_state.set(new_state.toggle_flag(row, column));
-            }
+                game_state.set(new_state);
         })
     };
 
 
     html! {
-        <section class={format!("{} flex w-full justify-center items-center", props.class.clone())}>
-            {match (*game_state).clone() {
+        <section class={format!("{} flex w-full justify-center items-center", props.class)}>
+            {match &*game_state {
                 GameState::Idle => {
                     html! {
                         <main class={"flex justify-center items-center w-300 h-200 bg-black/25"}>
@@ -147,7 +85,7 @@ pub fn content(props: &Props) -> Html {
                                     class="flex gap-2 border-white border-2 p-4 mx-auto hover:bg-black/30 hover:scale-105 transition-all duration-200"
                                 >
                                     <span class="dark:text-white">{"Play"}</span>
-                                    <Icon class="dark:text-white" data={IconData::LUCIDE_PLAY} width={"20px".to_owned()}/>
+                                    <Icon class="dark:text-white" data={IconData::LUCIDE_PLAY} width={"20px"}/>
                                 </button>
                                 <Records/>
                             </div>
@@ -163,9 +101,9 @@ pub fn content(props: &Props) -> Html {
                     let rendered_cells = cells.clone().into_iter().map(|cell: GameCell| {
                         html! {
                             <GameCellComponent
-                                cell={cell.clone()}
-                                on_reveal={on_reveal.clone()}
-                                on_toggle_flag={on_toggle_flag.clone()}
+                                cell={cell}
+                                on_reveal={&on_reveal}
+                                on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
                             />
                         }
@@ -176,23 +114,51 @@ pub fn content(props: &Props) -> Html {
                             <div style={grid_style}>
                                 { rendered_cells }
                             </div>
-                            <button type="button" onclick={on_play} class="">
+                            <button  type="button" onclick={on_play} class="flex">
                                 <span>{"Reset"}</span>
+                                <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                             </button>
                         </main>
                     }
                 },
-                GameState::GameOver { has_won, .. } => {
+                GameState::GameOver { has_won, cells, cols, .. } => {
+
+                    let grid_style = format!(
+                        "display: grid; grid-template-columns: repeat({}, 42px); gap: 2px;", 
+                        cols
+                    );
+
+                    let rendered_cells = cells.clone().into_iter().map(|cell: GameCell| {
+                        html! {
+                            <GameCellComponent
+                                cell={cell}
+                                on_reveal={&on_reveal}
+                                on_toggle_flag={&on_toggle_flag}
+                                disabled={true}
+                            />
+                        }
+                    }).collect::<Html>();
+
+                    let result = if *has_won {
+                        html! { <span>{"You won"}</span> }
+                    } else {
+                        html! { <span>{"You lost"}</span> }
+                    };
+
                     html! {
-                        <main class="flex">
-                            <span>{"Game over!"}</span>
-                            // { if has_won {
-                            //     <span>{"You won"}</span>
-                            // } else {
-                            //     <span>{"You lost"}</span>
-                            // } }
-                            <button type="button" onclick={on_play} class="">{"Play"}</button>
-                            <Records/>
+                        <main class="flex flex-col text-white">
+                            <div style={grid_style}>
+                                { rendered_cells }
+                            </div>
+                            <div class="absolute bg-black/50 p-10">
+                                <span class="">{"Game over!"}</span>
+                                {result}
+                                <button type="button" onclick={on_play} class="flex gap-2 items-center border p-2">
+                                    <span>{"Play again"}</span>
+                                    <Icon data={IconData::LUCIDE_PLAY} width={"20px"}/>
+                                </button>
+                                <Records/>
+                            </div>
                         </main>
                     }
                 },

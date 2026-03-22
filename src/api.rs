@@ -1,30 +1,49 @@
 use log::debug;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Headers, Request, RequestInit, RequestMode, Response};
+use web_sys::{window, Headers, Request, RequestCache, RequestInit, RequestMode, Response, Window};
 
-use crate::models::{FetchError, Social};
+use crate::models::{AppError, Social};
 
-pub async fn get_social()  -> Result<Social, FetchError> {
-    let url = "public/social.json";
-    
-    let request_options = RequestInit::new();
-    request_options.set_method("GET");
-    request_options.set_mode(RequestMode::NoCors);
+#[cfg(debug_assertions)]
+const CACHE_MODE: RequestCache = RequestCache::NoStore;
 
-    let headers = Headers::new().unwrap();
-    headers.set("Cache-Control", "no-cache").unwrap();
-    request_options.set_headers(&headers);
+#[cfg(not(debug_assertions))]
+const CACHE_MODE: RequestCache = RequestCache::Default;
 
-    let request = Request::new_with_str_and_init(url, &request_options)?;
+pub struct ApiClient(Window);
 
-    let window = gloo::utils::window();
-    let response_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-    let response: Response = response_value.dyn_into()?;
+impl ApiClient {
+    pub fn new() -> Self {
+        let window: Window = unsafe {window().unwrap_unchecked() };
+        Self(window)
+    }
 
-    let js_value = JsFuture::from(response.json()?).await?;
-    
-    let data: Social = serde_wasm_bindgen::from_value(js_value)?;
+    pub async fn get_social(&self) -> Result<Social, AppError> {
+        let url = "public/social.json";
 
-    Ok(data)
+        let request_options = RequestInit::new();
+        request_options.set_method("GET");
+        request_options.set_mode(RequestMode::Cors);
+        request_options.set_cache(CACHE_MODE);
+
+        let request = Request::new_with_str_and_init(url, &request_options)
+            .map_err(AppError::failed_to_build_request)?;
+
+        let response_value = JsFuture::from(self.0.fetch_with_request(&request))
+            .await
+            .map_err(AppError::network_request_failed)?;
+
+        let response: Response = response_value.dyn_into()
+            .map_err(AppError::invalid_response)?;
+
+        let js_value = JsFuture::from(response.json()?)
+            .await
+            .map_err(AppError::failed_to_read_body)?;
+
+        let data: Social = serde_wasm_bindgen::from_value(js_value)
+            .map_err(AppError::from)?;
+
+        Ok(data)
+    }
 }

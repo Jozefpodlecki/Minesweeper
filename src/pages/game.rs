@@ -16,7 +16,6 @@ pub fn game(props: &Props) -> Html {
 
     html! {
         <article class="flex flex-col w-full h-full">
-           <Background src="public/background.jpg"/>
            <h1 class="flex gap-2 justify-center items-center dark:text-white text-5xl py-2">
                 <span class="font-[oswald]">{"Minesweeper"}</span>
                 <img class="w-16" src="public/favicon-32x32.png" alt="logo"/>
