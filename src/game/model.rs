@@ -23,7 +23,7 @@ pub struct GameCell {
     pub column: String,
     pub is_mine: bool,
     pub state: CellState,
-    pub neighbor_mines: u8,
+    pub neighbor_mines: usize,
 }
 
 
@@ -47,7 +47,7 @@ impl GameCell {
 pub struct SavedGameState {
     pub cells: Box<[GameCell]>,
     pub rows: usize,
-    pub cols: usize,
+    pub columns: usize,
     pub mines_count: usize,
     pub revealed_count: usize, 
     pub started_at: DateTime<Utc>,
@@ -55,7 +55,7 @@ pub struct SavedGameState {
 
 pub struct GameSettings {
     pub rows: usize,
-    pub cols: usize,
+    pub columns: usize,
     pub mines_count: usize
 }
 
@@ -63,8 +63,18 @@ impl Default for GameSettings {
     fn default() -> Self {
         Self {
             rows: 15,
-            cols: 15,
+            columns: 15,
             mines_count: 2
+        }
+    }
+}
+
+impl GameSettings {
+    pub fn hard() -> Self {
+        Self {
+            rows: 15,
+            columns: 15,
+            mines_count: 50
         }
     }
 }

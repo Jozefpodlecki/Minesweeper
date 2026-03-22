@@ -8,7 +8,7 @@ use yew::{virtual_dom::VNode, *};
 use yew_router::prelude::Link;
 use wasm_bindgen::JsCast; 
 
-use crate::{components::{GameCellComponent, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::{GameCell, GameState, Repository, SavedGameState}, models::Social, route::Route};
+use crate::{components::{AiPlaying, GameBoard, GameCellComponent, GameOver, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::Social, route::Route};
 use yew_icons::{Icon, IconData};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -16,48 +16,12 @@ pub struct Props {
     pub class: String
 }
 
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct GameOverProps {
-    pub has_won: bool,
-    pub on_play: Callback<MouseEvent>
-}
-
-#[function_component(GameOver)]
-pub fn game_over(props: &GameOverProps) -> Html {
-
-    let GameOverProps { has_won, on_play } = props.clone();
-
-    let result = if has_won {
-        html! { <span>{"You won"} </span> }
-    } else {
-        html! { <span>{"You lost" }</span> }
-    };
-
-    html! {
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-black/80 p-10 rounded shadow-lg flex flex-col items-center gap-4 w-100">
-                <span>{"Game over!"}</span>
-                {result}
-
-                <button
-                    type="button"
-                    onclick={on_play}
-                    class="flex gap-2 items-center border p-2"
-                >
-                    <span>{"Play again"}</span>
-                    <Icon data={IconData::LUCIDE_PLAY} width={"20px"}/>
-                </button>
-
-                <Records/>
-            </div>
-        </div>
-    }
-}
-
 #[function_component(Content)]
 pub fn content(props: &Props) -> Html {
     
-    let game_state = use_state(|| GameState::game_over(true) );
+    let game_state = use_state(|| GameState::default() );
+    // let game_state = use_state(|| GameState::default().play(Default::default()) );
+    // let game_state = use_state(|| GameState::game_over(true) );
 
     let on_play: Callback<MouseEvent> = {
         let game_state = game_state.clone();
@@ -75,19 +39,13 @@ pub fn content(props: &Props) -> Html {
             let dataset = event.target_dataset_unchecked();
             let row = dataset.parse_unchecked("row");
             let column = dataset.parse_unchecked("column");
-            let new_state = (*game_state).clone();
-
-            let next_state = match &new_state {
-                GameState::Initializing { .. } => {
-                    let initialized = new_state.initialize_with_first_click(row, column);
-                    initialized.reveal(row, column)
-                }
-                _ => new_state.reveal(row, column),
+            let next_state = {
+                (*game_state).clone().reveal(row, column)
             };
 
-            match &next_state {
-                GameState::GameOver { has_won, cells, rows, cols, duration, started_at, mines_count, revealed_count } => {
-                    info!("over");
+            match &next_state.phase() {
+                GamePhase::GameOver { .. } => {
+                    info!("over1");
                 },
                 _ => {}
             }
@@ -109,17 +67,35 @@ pub fn content(props: &Props) -> Html {
         })
     };
 
+    {
+        let game_state = game_state.clone();
+        use_effect_with(
+            game_state,
+            move |game_state| {
+                match game_state.phase() {
+                    GamePhase::Playing { .. } => {
+                        info!("playing");
+                    },
+                    GamePhase::GameOver { .. } => {
+                        info!("over");
+                    },
+                    _ => {}
+                } 
+            },
+        );
+    }
 
     html! {
         <section class={format!("{} flex w-full justify-center items-center", props.class)}>
-            {match &*game_state {
-                GameState::Idle => {
+            {match game_state.phase() {
+                GamePhase::Idle => {
                     html! {
-                        <main class={"flex justify-center items-center w-300 h-200 bg-black/25"}>
-                            <div class="">
+                        <main class={"flex flex-col justify-center items-center h-200"}>
+                            <AiPlaying/>
+                            <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
                                <button 
                                     type="button" 
-                                    onclick={on_play} 
+                                    onclick={&on_play} 
                                     class="flex gap-2 border-white border-2 p-4 mx-auto hover:bg-black/30 hover:scale-105 transition-all duration-200"
                                 >
                                     <span class="dark:text-white">{"Play"}</span>
@@ -130,57 +106,80 @@ pub fn content(props: &Props) -> Html {
                         </main>
                     }
                 },
-                GameState::Initializing { cells, cols, .. } | GameState::Playing { cells, cols, .. } => {
-                    let grid_style = format!(
-                        "display: grid; grid-template-columns: repeat({}, 42px); gap: 2px;", 
-                        cols
-                    );
-
-                    let rendered_cells = cells.clone().into_iter().map(|cell: GameCell| {
-                        html! {
-                            <GameCellComponent
-                                cell={cell}
+                GamePhase::Initializing { cells, columns, .. } => {
+                    html! {
+                        <main class="flex flex-col text-white h-200">
+                            <div class="flex items-center gap-1 mb-2 px-2">
+                                <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
+                                <span>{format!("Mines: {}", 0)}</span>
+                                // <span>{format!("Time: {}s", seconds)}</span>
+                            </div>
+                            <GameBoard
+                                cells={cells.clone()}
+                                columns={*columns}
                                 on_reveal={&on_reveal}
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
                             />
-                        }
-                    }).collect::<Html>();
-
-                    html! {
-                        <main class="flex justify-center items-center w-300 h-200 bg-black/25">
-                            <div style={grid_style}>
-                                { rendered_cells }
+                            <div class="flex mt-4">
+                                <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
+                                    <span>{"Reset"}</span>
+                                    <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
+                                </button>
                             </div>
-                            <button type="button" onclick={on_play} class="flex">
-                                <span>{"Reset"}</span>
-                                <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
-                            </button>
                         </main>
                     }
                 },
-                GameState::GameOver { has_won, cells, cols, .. } => {
+                GamePhase::Playing { cells, columns, flags_count, mines_count, .. } => {
+ 
+                    let mines_left = mines_count - flags_count;
 
-                    let grid_style = format!(
-                        "display: grid; grid-template-columns: repeat({}, 42px); gap: 2px;", 
-                        cols
-                    );
+                    html! {
+                        <main class="flex flex-col text-white h-200">
+                            <div class="flex items-center gap-1 mb-2 px-2">
+                                <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
+                                <span>{format!("Mines: {}", mines_left)}</span>
+                                // <span>{format!("Time: {}s", seconds)}</span>
+                            </div>
+                            <GameBoard
+                                cells={cells.clone()}
+                                columns={*columns}
+                                on_reveal={&on_reveal}
+                                on_toggle_flag={&on_toggle_flag}
+                                disabled={false}
+                            />
+                            <div class="flex mt-4">
+                                <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
+                                    <span>{"Reset"}</span>
+                                    <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
+                                </button>
+                            </div>
+                        </main>
+                    }
+                },
+                GamePhase::GameOver { has_won, cells, columns, mines_count, flags_count, .. } => {
 
-                    let rendered_cells = cells.clone().into_iter().map(|cell: GameCell| {
-                        html! {
-                            <GameCellComponent
-                                cell={cell}
+                    let mines_left = mines_count - flags_count;
+
+                    html! {
+                        <main class="flex flex-col text-white h-200">
+                            <div class="flex items-center gap-1 mb-2 px-2">
+                                <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
+                                <span>{format!("Mines: {}", mines_left)}</span>
+                                // <span>{format!("Time: {}s", seconds)}</span>
+                            </div>
+                            <GameBoard
+                                cells={cells.clone()}
+                                columns={*columns}
                                 on_reveal={&on_reveal}
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={true}
                             />
-                        }
-                    }).collect::<Html>();
-
-                    html! {
-                        <main class="flex flex-col text-white">
-                            <div style={grid_style}>
-                                { rendered_cells }
+                            <div class="flex mt-4">
+                                <button disabled={true} type="button" onclick={&on_play} class="flex text-white p-2 border gap-2">
+                                    <span>{"Reset"}</span>
+                                    <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
+                                </button>
                             </div>
                             <GameOver has_won={has_won} on_play={&on_play} />
                         </main>

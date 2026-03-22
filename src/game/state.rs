@@ -1,192 +1,97 @@
 use std::hint::unreachable_unchecked;
+use log::*;
+use chrono::{Duration, Utc};
 
-use chrono::{DateTime, Duration, Utc};
-use gloo::console::info;
-use rand::{rng, seq::SliceRandom};
-use serde::{Deserialize, Serialize};
-
-use crate::{game::*, services::{DefaultSystemClock, SystemClock}};
+use crate::{
+    game::{
+        logic,
+        model::{CellState, GameCell, SavedGameState},
+        phase::GamePhase, GameSettings,
+    },
+    services::{DefaultSystemClock, SystemClock},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameState<SC: SystemClock> {
     clock: SC,
-    inner: GamePhase
-}
-
-impl GameState<DefaultSystemClock> {
-    pub fn default() -> Self {
-        Self {
-            clock: DefaultSystemClock::default(),
-            inner: GamePhase::default(),
-        }
-    }
-
-    pub fn game_over(has_won: bool) -> Self {
-        
-        let cells = Self::initialize_cells(15, 15);
-
-        Self {
-            clock: DefaultSystemClock::default(),
-            inner: GamePhase::GameOver {
-                has_won,
-                cells,
-                rows: 15,
-                cols: 15,
-                duration: Duration::seconds(10),
-                started_at: Utc::now(),
-                mines_count: 5,
-                revealed_count: 10
-            },
-        }
-    }
+    phase: GamePhase,
 }
 
 impl<SC: Clone + SystemClock> GameState<SC> {
     pub fn new(clock: SC) -> Self {
         Self {
             clock,
-            inner: GamePhase::default(),
+            phase: GamePhase::default(),
         }
     }
 
+    /// Start a new game
     pub fn play(&self, settings: GameSettings) -> Self {
-
         let GameSettings {
             rows,
-            cols,
-            mines_count
+            columns,
+            mines_count,
         } = settings;
 
-        let cells = Self::initialize_cells(rows, cols);
+        let cells = logic::initialize_cells(rows, columns);
 
         Self {
             clock: self.clock.clone(),
-            inner: GamePhase::Initializing {
+            phase: GamePhase::Initializing {
                 cells,
                 rows,
-                cols,
-                mines_count
+                columns,
+                mines_count,
             },
         }
     }
 
-    pub fn initialize_with_first_click(self, click_row: usize, click_col: usize) -> Self {
-        let inner = match self.inner {
-            GamePhase::Initializing { mut cells, rows, cols, mines_count} => {
-                let first_idx = click_row * cols + click_col;
-                
-                Self::setup_mines(&mut cells, mines_count, first_idx);
+    pub fn restart(&self) -> Self {
+        let phase = match self.phase.clone() {
+            GamePhase::GameOver { cells, rows, columns, .. } => {
 
-                let mut revealed_count = 0;
-     
-                Self::calculate_neighbor_counts(&mut cells, rows, cols);
-                Self::reveal_cell_internal(&mut cells, &mut revealed_count, rows, cols, click_row, click_col);
-                
-                GamePhase::Playing {
+                GamePhase::Initializing {
                     cells,
                     rows,
-                    cols,
-                    mines_count,
-                    revealed_count,
-                    started_at: self.clock.utc_now(),
+                    columns,
+                    mines_count: 0,
                 }
             },
-            _ => self.inner,
+            _=> unsafe { unreachable_unchecked() }
         };
 
         Self {
             clock: self.clock.clone(),
-            inner
+            phase,
         }
     }
 
-     fn reveal_cell_internal(
-        cells: &mut [GameCell],
-        revealed_count: &mut usize,
-        rows: usize, 
-        cols: usize, 
-        row: usize, 
-        col: usize
-    ) {
-        if !Self::in_bounds(row, col, rows, cols) {
-            return;
-        }
-
-        let idx = Self::to_index(row, col, cols);
-
-        if !Self::can_reveal(&cells[idx]) {
-            return;
-        }
-
-        Self::reveal_single_cell(cells, revealed_count, idx);
-
-        if Self::should_expand(&cells[idx]) {
-            Self::reveal_neighbors(cells, revealed_count, rows, cols, row, col);
-        }
+    pub fn phase(&self) -> &GamePhase {
+        &self.phase
     }
 
-    fn in_bounds(row: usize, col: usize, rows: usize, cols: usize) -> bool {
-        row < rows && col < cols
-    }
-
-    fn to_index(row: usize, col: usize, cols: usize) -> usize {
-        row * cols + col
-    }
-
-    fn can_reveal(cell: &GameCell) -> bool {
-         matches!(cell.state, CellState::Hidden)
-    }
-
-    fn should_expand(cell: &GameCell) -> bool {
-        !cell.is_mine && cell.neighbor_mines == 0
-    }
-
-    fn reveal_single_cell(
-        cells: &mut [GameCell],
-        revealed_count: &mut usize,
-        idx: usize,
-    ) {
-        cells[idx].state = CellState::Revealed;
-        *revealed_count += 1;
-    }
-
-    fn reveal_neighbors(
-        cells: &mut [GameCell],
-        revealed_count: &mut usize,
-        rows: usize,
-        cols: usize,
+    pub fn neighbors<'a>(
+        &self,
+        cells: &'a [GameCell],
         row: usize,
         col: usize,
-    ) {
-        for (nr, nc) in Self::neighbors(row, col, rows, cols) {
-            let nidx = Self::to_index(nr, nc, cols);
-
-            if matches!(cells[nidx].state, CellState::Revealed | CellState::Flagged) {
-                continue;
-            }
-
-            Self::reveal_single_cell(cells, revealed_count, nidx);
-
-            if cells[nidx].neighbor_mines == 0 && !cells[nidx].is_mine {
-                Self::reveal_neighbors(cells, revealed_count, rows, cols, nr, nc);
-            }
-        }
-    }
-
-    fn neighbors(row: usize, col: usize, rows: usize, cols: usize) -> Vec<(usize, usize)> {
+        rows: usize,
+        cols: usize,
+    ) -> Vec<&'a GameCell> {
         let mut result = Vec::with_capacity(8);
 
-        for dr in -1..=1 {
-            for dc in -1..=1 {
+        for dr in [-1isize, 0, 1] {
+            for dc in [-1isize, 0, 1] {
                 if dr == 0 && dc == 0 {
                     continue;
                 }
 
-                let nr = row as i32 + dr;
-                let nc = col as i32 + dc;
+                let nr = row as isize + dr;
+                let nc = col as isize + dc;
 
-                if nr >= 0 && nr < rows as i32 && nc >= 0 && nc < cols as i32 {
-                    result.push((nr as usize, nc as usize));
+                if nr >= 0 && nr < rows as isize && nc >= 0 && nc < cols as isize {
+                    let idx = nr as usize * cols + nc as usize;
+                    result.push(&cells[idx]);
                 }
             }
         }
@@ -194,212 +99,243 @@ impl<SC: Clone + SystemClock> GameState<SC> {
         result
     }
 
+    fn mines_left(cells: &[GameCell], total_mines: usize) -> isize {
+        let flagged = cells
+            .iter()
+            .filter(|c| matches!(c.state, CellState::Flagged))
+            .count();
+
+        total_mines as isize - flagged as isize
+    }
+
     pub fn toggle_flag(&self, row: usize, col: usize) -> Self {
-        
-        let inner = match self.inner {
+        let phase = match &self.phase {
             GamePhase::Playing {
-                mut cells,
+                cells,
                 rows,
-                cols,
+                columns,
                 mines_count,
                 revealed_count,
+                flags_count,
                 started_at,
             } => {
-                let idx = row * cols + col;
+                let mut cells = cells.clone();
+                let idx = row * *columns + col;
 
-                if idx >= cells.len() {
-                    return GamePhase::Playing {
-                        cells,
-                        rows,
-                        cols,
-                        mines_count,
-                        revealed_count,
-                        started_at,
+                if idx < cells.len() {
+                    cells[idx].state = match cells[idx].state {
+                        CellState::Hidden => CellState::Flagged,
+                        CellState::Flagged => CellState::Hidden,
+                        CellState::Revealed => CellState::Revealed,
                     };
                 }
 
-                cells[idx].state = match cells[idx].state {
-                    CellState::Hidden => CellState::Flagged,
-                    CellState::Flagged => CellState::Hidden,
-                    CellState::Revealed => CellState::Revealed,
-                };
-
                 GamePhase::Playing {
                     cells,
-                    rows,
-                    cols,
-                    mines_count,
-                    revealed_count,
-                    started_at,
+                    rows: *rows,
+                    columns: *columns,
+                    mines_count: *mines_count,
+                    revealed_count: *revealed_count,
+                    flags_count: *flags_count,
+                    started_at: *started_at,
                 }
             }
-            _ => self.clone(),
+            other => other.clone(),
         };
 
         Self {
             clock: self.clock.clone(),
-            inner
+            phase,
         }
     }
 
+    fn reveal_all_cells(cells: &mut [GameCell]) {
+        for cell in cells.iter_mut() {
+            cell.state = CellState::Revealed;
+        }
+    }
+
+    /// Reveal a cell (core gameplay action)
     pub fn reveal(self, row: usize, col: usize) -> Self {
-        match self {
-            Self::Playing {
+        let phase = match self.phase {
+            GamePhase::Initializing {
                 mut cells,
                 rows,
-                cols,
+                columns,
+                mines_count,
+            } => {
+                let first_idx = row * columns + col;
+
+                logic::setup_mines(&mut cells, mines_count, first_idx);
+                logic::calculate_neighbor_counts(&mut cells, rows, columns);
+
+                let mut revealed_count = 0;
+
+                logic::reveal_cell(
+                    &mut cells,
+                    &mut revealed_count,
+                    row,
+                    col,
+                    rows,
+                    columns,
+                );
+
+                GamePhase::Playing {
+                    cells,
+                    rows,
+                    columns,
+                    mines_count,
+                    revealed_count,
+                    flags_count: 0,
+                    started_at: self.clock.utc_now(),
+                }
+            },
+            GamePhase::Playing {
+                mut cells,
+                rows,
+                columns,
                 mines_count,
                 mut revealed_count,
+                flags_count,
                 started_at,
             } => {
-                let idx = row * cols + col;
+                let idx = row * columns + col;
 
-                if idx >= cells.len() || matches!(cells[idx].state, CellState::Flagged) {
-                    return GamePhase::Playing {
-                        cells,
-                        rows,
-                        cols,
-                        mines_count,
-                        revealed_count,
-                        started_at,
+                if idx >= cells.len()
+                    || matches!(cells[idx].state, CellState::Flagged)
+                {
+                    return Self {
+                        clock: self.clock.clone(),
+                        phase: GamePhase::Playing {
+                            cells,
+                            rows,
+                            columns,
+                            mines_count,
+                            revealed_count,
+                            flags_count,
+                            started_at,
+                        },
                     };
                 }
 
                 if cells[idx].is_mine {
                     cells[idx].state = CellState::Revealed;
+ 
+                    Self::reveal_all_cells(&mut cells);
 
-                    return GamePhase::GameOver {
-                        has_won: false,
-                        duration: Utc::now() - started_at,
-                        cells,
-                        rows,
-                        cols,
-                        started_at,
-                        revealed_count: 0,
-                        mines_count: 0
+                    return Self {
+                        clock: self.clock.clone(),
+                        phase: GamePhase::GameOver {
+                            has_won: false,
+                            duration: self.clock.utc_now() - started_at,
+                            cells,
+                            rows,
+                            columns,
+                            started_at,
+                            revealed_count,
+                            mines_count,
+                            flags_count
+                        },
                     };
                 }
 
-                Self::reveal_cell_internal(
+                logic::reveal_cell(
                     &mut cells,
                     &mut revealed_count,
-                    rows,
-                    cols,
                     row,
                     col,
+                    rows,
+                    columns,
                 );
 
-                let total_safe = rows * cols - mines_count;
+                let total_safe = rows * columns - mines_count;
 
                 if revealed_count == total_safe {
-                    return GamePhase::GameOver {
-                        has_won: true,
-                        duration: Utc::now() - started_at,
-                        cells,
-                        rows,
-                        cols,
-                        started_at,
-                        revealed_count: 0,
-                        mines_count: 0
+                    Self::reveal_all_cells(&mut cells);
+
+                    return Self {
+                        clock: self.clock.clone(),
+                        phase: GamePhase::GameOver {
+                            has_won: true,
+                            duration: self.clock.utc_now() - started_at,
+                            cells,
+                            rows,
+                            columns,
+                            started_at,
+                            revealed_count,
+                            mines_count,
+                            flags_count
+                        },
                     };
                 }
 
                 GamePhase::Playing {
                     cells,
                     rows,
-                    cols,
+                    columns,
                     mines_count,
                     revealed_count,
+                    flags_count,
                     started_at,
                 }
             }
-            _ => self,
+            other => other,
+        };
+
+        Self {
+            clock: self.clock.clone(),
+            phase,
         }
     }
 
-    fn initialize_cells(rows: usize, cols: usize,) -> Box<[GameCell]> {
-        let total_cells = rows * cols;
-        let mut cells = Vec::with_capacity(total_cells);
-
-        for row in 0..rows {
-            for col in 0..cols {
-                cells.push(GameCell::new(row, col, cols));
-            }
-        }
-
-        cells.into()
-    }
-
-    fn setup_mines(cells: &mut [GameCell], mines_count: usize, forbidden_idx: usize) {
-        let mut indices: Vec<usize> = (0..cells.len())
-            .filter(|&i| i != forbidden_idx)
-            .collect();
-
-        let mut rng = rng();
-        indices.shuffle(&mut rng);
-
-        for &idx in indices.iter().take(mines_count) {
-            cells[idx].is_mine = true;
-        }
-    }
-
-    fn calculate_neighbor_counts(cells: &mut [GameCell], rows: usize, cols: usize) {
-        for row in 0..rows {
-            for col in 0..cols {
-                let idx = row * cols + col;
-                if cells[idx].is_mine {
-                    continue;
-                }
-
-                cells[idx].neighbor_mines = Self::count_adjacent_mines(cells, row, col, rows, cols);
-            }
-        }
-    }
-    
-    fn count_adjacent_mines(cells: &[GameCell], row: usize, col: usize, rows: usize, cols: usize) -> u8 {
-        let mut count = 0;
-        
-        for dr in -1..=1 {
-            for dc in -1..=1 {
-                if dr == 0 && dc == 0 { continue; }
-                
-                let nr = row as i32 + dr;
-                let nc = col as i32 + dc;
-                
-                if nr >= 0 && nr < rows as i32 && nc >= 0 && nc < cols as i32 {
-                    let neighbor_idx = (nr as usize) * cols + (nc as usize);
-                    if cells[neighbor_idx].is_mine {
-                        count += 1;
-                    }
-                }
-            }
-        }
-        
-        count
-    }
-
-    fn to_state(self) -> SavedGameState {
-
-        match self.inner {
+    /// Convert finished game into a saved state
+    pub fn to_state(self) -> SavedGameState {
+        match self.phase {
             GamePhase::GameOver {
-                has_won,
                 cells,
                 rows,
-                cols,
-                duration,
+                columns,
                 mines_count,
                 revealed_count,
-                started_at } => {
-                SavedGameState {
-                    cells,
-                    rows,
-                    cols,
-                    mines_count,
-                    revealed_count,
-                    started_at
-                }
+                started_at,
+                ..
+            } => SavedGameState {
+                cells,
+                rows,
+                columns,
+                mines_count,
+                revealed_count,
+                started_at,
             },
-            _ => unsafe { unreachable_unchecked() }
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+}
+
+impl GameState<DefaultSystemClock> {
+    pub fn default() -> Self {
+        Self {
+            clock: DefaultSystemClock::default(),
+            phase: GamePhase::default(),
+        }
+    }
+
+    pub fn game_over(has_won: bool) -> Self {
+        let cells = logic::initialize_cells(15, 15);
+
+        Self {
+            clock: DefaultSystemClock::default(),
+            phase: GamePhase::GameOver {
+                has_won,
+                cells,
+                rows: 15,
+                columns: 15,
+                duration: Duration::seconds(10),
+                started_at: Utc::now(),
+                mines_count: 5,
+                revealed_count: 10,
+                flags_count: 0
+            },
         }
     }
 }

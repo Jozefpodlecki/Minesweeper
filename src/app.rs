@@ -3,12 +3,12 @@ use std::time::Duration;
 use gloo::timers::future::sleep;
 use log::info;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, HtmlElement};
+use web_sys::{window, Document, HtmlElement, Window};
 use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
-use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, utils::set_document_version};
+use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, services::SettingsManager, utils::set_document_version};
 
 async fn fetch_social(app_state: UseStateHandle<AppState>) {
     app_state.set(AppState::Loading);
@@ -27,10 +27,17 @@ async fn fetch_social(app_state: UseStateHandle<AppState>) {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct AppProps {
+    pub window: Window,
+    pub document: Document
+}
+
 #[function_component(App)]
-pub fn app() -> Html {
+pub fn app(props: &AppProps) -> Html {
     let app_state = use_state(AppState::default);
     let repository = Repository::new();
+    let settings_manager = SettingsManager::new();
     use_effect_with((), set_document_version);
 
     {
@@ -77,17 +84,19 @@ pub fn app() -> Html {
         },
         AppState::Loaded(social) => {
             html! {
-                <ContextProvider<Repository> context={repository}>
-                    <ContextProvider<Social> context={social.clone()}>
-                        <Layout>
-                            <Settings/>
-                            <Screenshot/>
-                            <HashRouter>
-                                <Switch<Route> render={switch} />
-                            </HashRouter>
-                        </Layout>
-                    </ContextProvider<Social>>
-                </ContextProvider<Repository>>
+                <ContextProvider<SettingsManager> context={settings_manager}>
+                    <ContextProvider<Repository> context={repository}>
+                        <ContextProvider<Social> context={social.clone()}>
+                            <Layout>
+                                <Settings/>
+                                <Screenshot/>
+                                <HashRouter>
+                                    <Switch<Route> render={switch} />
+                                </HashRouter>
+                            </Layout>
+                        </ContextProvider<Social>>
+                    </ContextProvider<Repository>>
+                </ContextProvider<SettingsManager>>
             }
         },
     }

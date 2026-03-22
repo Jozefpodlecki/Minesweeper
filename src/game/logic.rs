@@ -3,7 +3,7 @@ use rand::{rng, seq::SliceRandom};
 use crate::game::model::{CellState, GameCell};
 
 /// Creates a flat grid of cells
-pub fn initialize_cells(rows: usize, cols: usize) -> Vec<GameCell> {
+pub fn initialize_cells(rows: usize, cols: usize) -> Box<[GameCell]> {
     let mut cells = Vec::with_capacity(rows * cols);
 
     for row in 0..rows {
@@ -12,7 +12,7 @@ pub fn initialize_cells(rows: usize, cols: usize) -> Vec<GameCell> {
         }
     }
 
-    cells
+    cells.into()
 }
 
 /// Randomly places mines, avoiding a forbidden index (first click)
@@ -144,7 +144,7 @@ fn count_adjacent_mines(
     col: usize,
     rows: usize,
     cols: usize,
-) -> u8 {
+) -> usize {
     let mut count = 0;
 
     for dr in -1..=1 {
@@ -166,4 +166,8 @@ fn count_adjacent_mines(
     }
 
     count
+}
+
+mod tests {
+    
 }

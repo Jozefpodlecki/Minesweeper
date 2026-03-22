@@ -33,18 +33,25 @@ pub fn game_cell(props: &Props) -> Html {
                 html! {}
             };
 
-            let classes = format!("{} cursor-default bg-gray-100 text-black", base_class);
+            let state_class = if cell.is_mine {
+                "bg-red-500/70"
+            }
+            else {
+                "bg-gray-100/70"
+            };
+
+            let classes = format!("{} cursor-default {} text-black", state_class, base_class);
 
             ("revealed", classes, content)
         }
 
         CellState::Hidden => {
-            let classes = format!("{} bg-gray-300 text-black", base_class);
+            let classes = format!("{} bg-gray-300/70 text-black", base_class);
             ("hidden", classes, html! {})
         }
 
         CellState::Flagged => {
-            let classes = format!("{} bg-gray-300 text-black pointer-events-none", base_class);
+            let classes = format!("{} bg-gray-300/70 text-black pointer-events-none", base_class);
             let content = html! {
                 <Icon data={IconData::LUCIDE_FLAG} width={"20px"} />
             };
@@ -55,6 +62,7 @@ pub fn game_cell(props: &Props) -> Html {
     html! {
         <button
             data-state={state}
+            data-id={cell.id.to_string()}
             data-row={cell.row.clone()}
             data-column={cell.column.clone()}
             key={cell.key.clone()}
