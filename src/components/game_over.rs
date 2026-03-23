@@ -1,15 +1,9 @@
-use chrono::{DateTime, Duration, Utc};
-use gloo::{storage::{LocalStorage, Storage}, utils::errors::JsError};
 use log::info;
-use rand::{rng, seq::SliceRandom, RngExt};
-use serde::{Deserialize, Serialize};
-use web_sys::{window, HtmlElement};
-use yew::{virtual_dom::VNode, *};
-use yew_router::prelude::Link;
-use wasm_bindgen::JsCast; 
+use yew::prelude::*;
 
-use crate::{components::{GameBoard, GameCellComponent, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::Social, route::Route};
 use yew_icons::{Icon, IconData};
+
+use crate::components::Records;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {
@@ -30,7 +24,7 @@ pub fn game_over(props: &Props) -> Html {
 
     html! {
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-black/80 p-10 rounded shadow-lg flex flex-col items-center gap-4 w-100">
+            <div class="bg-black/80 p-10 rounded shadow-lg flex flex-col items-center gap-4 w-200">
                 <span class="text-4xl">{"Game over!"}</span>
                 {result}
 

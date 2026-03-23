@@ -8,7 +8,7 @@ use yew::{virtual_dom::VNode, *};
 use yew_router::prelude::Link;
 use wasm_bindgen::JsCast; 
 
-use crate::{components::{AiPlaying, GameBoard, GameCellComponent, GameOver, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::Social, route::Route};
+use crate::{components::{AiPlaying, GameBoard, GameCellComponent, GameOver, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::{GameDifficulty, Social}, route::Route, services::SettingsManager};
 use yew_icons::{Icon, IconData};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -19,16 +19,21 @@ pub struct Props {
 #[function_component(Content)]
 pub fn content(props: &Props) -> Html {
     
+    let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let repository = unsafe { use_context::<Repository>().unwrap_unchecked() };
-    let game_state = use_state(|| GameState::default() );
-    // let game_state = use_state(|| GameState::default().play(Default::default()) );
+    // let game_state = use_state(|| GameState::default() );
+    let game_state = use_state(|| GameState::default().play(GameSettings::from_difficulty(15, 15, GameDifficulty::Hard)) );
     // let game_state = use_state(|| GameState::game_over(true) );
+    // let game_state = use_state(|| GameState::game_over(false) );
+    let settings = use_state(|| settings_manager.get() );
 
     let on_play: Callback<MouseEvent> = {
         let game_state = game_state.clone();
+        let settings_manager = settings_manager.clone();
 
         Callback::from(move |_| {
-            let new_state = game_state.play(Default::default());
+            let settings = settings_manager.get();
+            let new_state = game_state.play(GameSettings::from_difficulty(15, 15, settings.difficulty));
             game_state.set(new_state);
         })
     };
@@ -122,6 +127,7 @@ pub fn content(props: &Props) -> Html {
                                 // <span>{format!("Time: {}s", seconds)}</span>
                             </header>
                             <GameBoard
+                                engine={settings.engine}
                                 cells={cells.clone()}
                                 columns={*columns}
                                 on_reveal={&on_reveal}
@@ -149,6 +155,7 @@ pub fn content(props: &Props) -> Html {
                                 // <span>{format!("Time: {}s", seconds)}</span>
                             </header>
                             <GameBoard
+                                engine={settings.engine}
                                 cells={cells.clone()}
                                 columns={*columns}
                                 on_reveal={&on_reveal}
@@ -176,6 +183,7 @@ pub fn content(props: &Props) -> Html {
                                 // <span>{format!("Time: {}s", seconds)}</span>
                             </header>
                             <GameBoard
+                                engine={settings.engine}
                                 cells={cells.clone()}
                                 columns={*columns}
                                 on_reveal={&on_reveal}

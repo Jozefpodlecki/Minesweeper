@@ -1,3 +1,5 @@
+use std::{cell::{Ref, RefCell}, rc::Rc};
+
 use wasm_bindgen::JsError;
 use web_sys::{window, Storage};
 
@@ -6,7 +8,7 @@ use crate::{game::SavedGameState, models::{GameResult}};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Repository {
-    items: Vec<GameResult>,
+    items: Rc<RefCell<Vec<GameResult>>>,
     local_storage: Storage
 }
 
@@ -15,37 +17,38 @@ impl Repository {
 
         let items = unsafe {
             let json = local_storage.get_item("records").unwrap_unchecked();
-            let records = json.and_then(|json| serde_json::from_str(&json).unwrap_unchecked());
+            let records: Option<Vec<_>> = json.and_then(|json| serde_json::from_str(&json).unwrap_unchecked());
             records.unwrap_or_default()
         };
 
         Self {
-            items,
+            items: Rc::new(RefCell::new(items)),
             local_storage
         }
     }
 
-    pub fn clear_records(&mut self) {
+    pub fn clear_records(&self) {
         unsafe { self.local_storage.remove_item("records").unwrap_unchecked(); }
     }
 
-    pub fn get_last_records<'a>(&'a self) -> &'a [GameResult] {
+    pub fn get_last_records(&self) -> Ref<'_, [GameResult]> {
         // self.items.sort_by_key(|r| r.created_on);
-        let len = self.items.len();
+        let len = self.items.borrow().len();
         let start = len.saturating_sub(5);
 
-        &self.items[start..]
+        Ref::map(self.items.borrow(), |items| &items[start..])
     }
 
-    pub fn set_last_record(&mut self, value: GameResult) {
+    pub fn set_last_record(&self, value: GameResult) {
         unsafe {
-            self.items.push(value);
+            self.items.borrow_mut().insert(0, value);
 
-            if self.items.len() > 5 {
-                self.items.remove(0);
+            let len = self.items.borrow().len();
+            if self.items.borrow().len() > 5 {
+                self.items.borrow_mut().remove(len - 1);
             }
 
-            let json = serde_json::to_string(&self.items).unwrap_unchecked();
+            let json = serde_json::to_string(self.items.as_ref()).unwrap_unchecked();
             self.local_storage.set_item("records", &json).unwrap_unchecked();
         }
     }

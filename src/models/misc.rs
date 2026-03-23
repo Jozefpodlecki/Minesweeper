@@ -38,7 +38,7 @@ pub struct GameResult {
     pub flags_count: usize
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GameDifficulty {
     #[default]
     Easy,
@@ -46,7 +46,25 @@ pub enum GameDifficulty {
     Hard
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+impl GameDifficulty {
+    pub fn label(&self) -> &'static str {
+        match self {
+            GameDifficulty::Easy => "Easy",
+            GameDifficulty::Medium => "Medium",
+            GameDifficulty::Hard => "Hard",
+        }
+    }
+
+    pub fn all() -> &'static [GameDifficulty] {
+        &[
+            GameDifficulty::Easy,
+            GameDifficulty::Medium,
+            GameDifficulty::Hard,
+        ]
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GameEngine {
     #[default]
     Html,
@@ -77,9 +95,35 @@ impl fmt::Display for GameDifficulty {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BackgroundSource {
+    #[default]
+    Default,
+    FileSystem {
+        uploaded_on: DateTime<Utc>,
+        file_name: Box<str>,
+        data_url: Box<str>
+    },
+    Url {
+        uploaded_on: DateTime<Utc>,
+        url: Box<str>,
+        data_url: Box<str>
+    }
+}
+
+impl BackgroundSource {
+    pub fn name(&self) -> &'static str {
+        match self {
+            BackgroundSource::Default => "default",
+            BackgroundSource::FileSystem { .. } => "file",
+            BackgroundSource::Url { .. } => "url",
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     pub difficulty: GameDifficulty,
     pub engine: GameEngine,
-    pub background_url: Option<String>,
+    pub background: BackgroundSource,
     pub persist_game: bool
 }

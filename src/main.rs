@@ -13,6 +13,9 @@ mod services;
 mod utils;
 mod ffi;
 
+#[cfg(test)]
+mod testing;
+
 use app::App;
 use log::Level;
 use wasm_logger::{init, Config};

@@ -1,7 +1,7 @@
 use std::str::FromStr;
-use wasm_bindgen::JsCast;
-use web_sys::{DomStringMap, HtmlElement};
-use yew::MouseEvent;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{DomStringMap, HtmlElement, Node};
+use yew::{MouseEvent, NodeRef};
 
 pub trait DomStringMapExtensions {
     fn get_unchecked(&self, key: &str) -> String;
@@ -38,5 +38,15 @@ impl MouseEventExtensions for MouseEvent {
         let current_target = unsafe { self.target().unwrap_unchecked() };
         let html_element = current_target.unchecked_into::<HtmlElement>();
         html_element.dataset()
+    }
+}
+
+pub trait ExtensionsNodeRef {
+    fn unchecked_cast<T: AsRef<Node> + From<JsValue>>(&self) -> T;
+}
+
+impl ExtensionsNodeRef for NodeRef {
+    fn unchecked_cast<T: AsRef<Node> + From<JsValue>>(&self) -> T {
+        unsafe { self.cast::<T>().unwrap_unchecked() }
     }
 }

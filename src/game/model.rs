@@ -87,16 +87,6 @@ pub struct GameSettings {
     pub mines_count: usize
 }
 
-impl Default for GameSettings {
-    fn default() -> Self {
-        Self {
-            rows: 15,
-            columns: 15,
-            mines_count: 2
-        }
-    }
-}
-
 impl GameSettings {
     pub fn from_difficulty(rows: usize, columns: usize, difficulty: GameDifficulty) -> Self {
         let mut rng = rand::rng();

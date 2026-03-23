@@ -1,12 +1,11 @@
 use std::hint::unreachable_unchecked;
 
-use log::info;
+use log::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlElement, HtmlInputElement, HtmlSelectElement};
+use web_sys::{HtmlElement, HtmlSelectElement};
 use yew::*;
-use yew_router::prelude::Link;
 
-use crate::{extensions::*, route::Route, services::SettingsManager};
+use crate::{components::{BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
 use yew_icons::{Icon, IconData};
 
 #[derive(Default)]
@@ -51,9 +50,9 @@ pub struct Props {
 
 #[function_component(Settings)]
 pub fn settings(props: &Props) -> Html {
-    let is_open = use_state(|| false);
+    let is_open = use_state(|| true);
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
-    let settings = use_state(|| settings_manager.get());
+    let settings = use_state(|| settings_manager.get() );
    
     let on_action: Callback<MouseEvent> = {
         let is_open = is_open.clone();
@@ -83,21 +82,27 @@ pub fn settings(props: &Props) -> Html {
         let settings = settings.clone();
 
         Callback::from(move |event: Event| {
+            let settings = settings.clone();
+            
             let input: HtmlSelectElement = event.target_unchecked_into();
             let mut next = (*settings).clone();
-            next.difficulty = input.value().parse().unwrap();
+            let difficulty = input.value().parse().unwrap();
+            info!("{difficulty}");
+            next.difficulty = difficulty;
+
             settings.set(next);
         })
     };
 
-    let on_background_change = {
+    let on_background_change: Callback<BackgroundSource> = {
         let settings = settings.clone();
 
-        Callback::from(move |event: InputEvent| {
-            let input: HtmlInputElement = event.target_unchecked_into();
-            let mut next = (*settings).clone();
-            next.background_url = Some(input.value());
-            settings.set(next);
+        Callback::from(move |value: BackgroundSource| {
+            // let input: HtmlInputElement = event.target_unchecked_into();
+            // let mut next = (*settings).clone();
+            // next.background_url = Some(input.value());
+            // settings.set(next);
+            
         })
     };
 
@@ -140,30 +145,8 @@ pub fn settings(props: &Props) -> Html {
                         onclick={stop_propagation}
                     >
                         <div class="flex flex-col gap-3 mb-4">
-                            <label class="flex flex-col text-sm">
-                                {"Difficulty"}
-                                <select
-                                    class="mt-1 p-2 bg-black border"
-                                    onchange={on_difficulty_change}
-                                    value={settings.difficulty.to_string()}
-                                >
-                                    <option value="easy">{"Easy"}</option>
-                                    <option value="medium">{"Medium"}</option>
-                                    <option value="hard">{"Hard"}</option>
-                                </select>
-                            </label>
-
-                            <label class="flex flex-col text-sm">
-                                {"Background Image URL"}
-                                <img src="" alt=""/>
-                                <input
-                                    type="text"
-                                    class="mt-1 p-2 bg-black border"
-                                    value={settings.background_url.clone()}
-                                    oninput={on_background_change}
-                                    placeholder={"Enter background image url"}
-                                />
-                            </label>
+                            <DifficultySelector value={settings.difficulty} on_change={on_difficulty_change} />
+                            <BackgroundSelector value={settings.background.clone()} on_change={on_background_change} />
 
                             <div class="flex items-center gap-2">
                                 <input
@@ -177,24 +160,26 @@ pub fn settings(props: &Props) -> Html {
                             </div>
 
                         </div>
-                        <button
-                            data-action="save"
-                            type="button"
-                            onclick={&on_action}
-                            class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
-                        >
-                            {"Save"}
-                            <Icon data={IconData::LUCIDE_DISC} width={"20px"}/>
-                        </button>
-                        <button
-                            data-action="close"
-                            type="button"
-                            onclick={&on_action}
-                            class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
-                        >
-                            {"Close"}
-                            <Icon data={IconData::LUCIDE_CROSS} width={"20px"}/>
-                        </button>
+                        <footer class="flex">
+                            <button
+                                data-action="save"
+                                type="button"
+                                onclick={&on_action}
+                                class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
+                            >
+                                {"Save"}
+                                <Icon data={IconData::LUCIDE_DISC} width={"20px"}/>
+                            </button>
+                            <button
+                                data-action="close"
+                                type="button"
+                                onclick={&on_action}
+                                class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
+                            >
+                                {"Close"}
+                                <Icon data={IconData::LUCIDE_CROSS} width={"20px"}/>
+                            </button>
+                        </footer>
                     </div>
                 </div>
             }

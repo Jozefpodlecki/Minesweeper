@@ -9,7 +9,7 @@ use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::prelude::Link;
 
-use crate::{components::{GameBoard, Timer}, game::{CellState, GameCell, GamePhase, GameSettings, GameState}, models::GameDifficulty, route::Route, services::{AiAction, AiAigent, SystemClock}};
+use crate::{components::{GameBoard, Timer}, game::{CellState, GameCell, GamePhase, GameSettings, GameState}, models::{GameDifficulty, GameEngine}, route::Route, services::{AiAction, AiAigent, SystemClock}};
 
 #[function_component(AiPlaying)]
 pub fn ai_playing() -> Html {
@@ -86,6 +86,7 @@ pub fn ai_playing() -> Html {
                             <span>{format!("Mines: {}", mines_left)}</span>
                         </div>
                         <GameBoard
+                            engine={GameEngine::Html}
                             cells={cells.clone()}
                             columns={*columns}
                             on_reveal={Callback::noop()}
@@ -107,6 +108,7 @@ pub fn ai_playing() -> Html {
                             <Timer started_at={*started_at} />
                         </header>
                         <GameBoard
+                            engine={GameEngine::Html}
                             cells={cells.clone()}
                             columns={*columns}
                             on_reveal={Callback::noop()}
@@ -128,6 +130,7 @@ pub fn ai_playing() -> Html {
                             <span>{format!("Mines: {}", mines_left)}</span>
                         </header>
                         <GameBoard
+                            engine={GameEngine::Html}
                             cells={cells.clone()}
                             columns={*columns}
                             on_reveal={Callback::noop()}
