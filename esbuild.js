@@ -3,7 +3,10 @@ const esbuild = require('esbuild');
 esbuild.build({
     entryPoints: ['package.js'],
     bundle: true,
-    outfile: 'src/package.js',
+    outfile: 'src/ffi/ffi.js',
     format: 'esm',
     minify: true,
-}).catch(() => process.exit(1));
+}).catch(err => {
+    process.exit(1);
+    console.error(err);
+});

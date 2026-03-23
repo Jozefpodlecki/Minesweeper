@@ -12,7 +12,7 @@ pub struct Props {
 
 #[function_component(Game)]
 pub fn game(props: &Props) -> Html {
-    let social = use_context::<Social>().unwrap();
+    let social = unsafe { use_context::<Social>().unwrap_unchecked() };
 
     html! {
         <article class="flex flex-col w-full h-full">

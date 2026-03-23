@@ -28,9 +28,24 @@ pub struct GameCell {
 
 
 impl GameCell {
-    pub fn new(row_id: usize, column_id: usize, cols: usize) -> Self {
+    #[cfg(test)]
+    pub fn new_with_state(row_id: usize, column_id: usize, columns: usize, is_mine: bool, state: CellState) -> Self {
         Self {
-            id: row_id * cols + column_id,
+            id: row_id * columns + column_id,
+            key: format!("{}-{}", row_id, column_id),
+            row_id,
+            column_id,
+            row: row_id.to_string(),
+            column: column_id.to_string(),
+            is_mine,
+            state,
+            neighbor_mines: 0,
+        }
+    }
+
+    pub fn new(row_id: usize, column_id: usize, columns: usize) -> Self {
+        Self {
+            id: row_id * columns + column_id,
             key: format!("{}-{}", row_id, column_id),
             row_id,
             column_id,

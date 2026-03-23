@@ -1,9 +1,8 @@
-use std::{error::Error, fmt::{self, Debug, Display, Formatter}};
+use std::{error::Error, fmt::{self, Debug, Display, Formatter}, str::FromStr};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
-
 use crate::models::AppError;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,6 +41,29 @@ pub enum GameDifficulty {
     Easy,
     Medium,
     Hard
+}
+
+impl FromStr for GameDifficulty {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "easy" => Ok(GameDifficulty::Easy),
+            "medium" => Ok(GameDifficulty::Medium),
+            "hard" => Ok(GameDifficulty::Hard),
+            _ => Err(()),
+        }
+    }
+}
+
+impl fmt::Display for GameDifficulty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GameDifficulty::Easy => write!(f, "easy"),
+            GameDifficulty::Medium => write!(f, "medium"),
+            GameDifficulty::Hard => write!(f, "hard"),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]

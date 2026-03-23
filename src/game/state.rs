@@ -320,6 +320,24 @@ impl GameState<DefaultSystemClock> {
         }
     }
 
+    pub fn playing(cells: Vec<GameCell>, rows: usize, columns: usize) -> Self {
+        let clock = DefaultSystemClock::default();
+        let started_at = clock.utc_now();
+
+        Self {
+            clock,
+            phase: GamePhase::Playing {
+                cells: cells.into(),
+                rows,
+                columns,
+                mines_count: 0,
+                revealed_count: 0,
+                flags_count: 0,
+                started_at
+            },
+        }
+    }
+
     pub fn game_over(has_won: bool) -> Self {
         let cells = logic::initialize_cells(15, 15);
 
@@ -337,5 +355,16 @@ impl GameState<DefaultSystemClock> {
                 flags_count: 0
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::{GamePhase, GameCell, CellState};
+
+    #[test]
+    fn should() {
+        
     }
 }

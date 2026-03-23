@@ -11,11 +11,11 @@ const CACHE_MODE: RequestCache = RequestCache::NoStore;
 #[cfg(not(debug_assertions))]
 const CACHE_MODE: RequestCache = RequestCache::Default;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ApiClient(Window);
 
 impl ApiClient {
-    pub fn new() -> Self {
-        let window: Window = unsafe {window().unwrap_unchecked() };
+    pub fn new(window: Window) -> Self {
         Self(window)
     }
 

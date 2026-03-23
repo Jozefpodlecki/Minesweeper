@@ -6,6 +6,7 @@ use yew::MouseEvent;
 pub trait DomStringMapExtensions {
     fn get_unchecked(&self, key: &str) -> String;
     fn parse_unchecked<T: FromStr>(&self, key: &str) -> T;
+    fn set_unchecked(&self, name: &str, value: &str);
 }
 
 impl DomStringMapExtensions for DomStringMap {
@@ -21,6 +22,10 @@ impl DomStringMapExtensions for DomStringMap {
     
     fn get_unchecked(&self, key: &str) -> String {
         unsafe { self.get(key).unwrap_unchecked() }
+    }
+    
+    fn set_unchecked(&self, name: &str, value: &str) {
+        unsafe { self.set(name, value).unwrap_unchecked() }
     }
 }
 

@@ -44,6 +44,18 @@ impl AppError {
         }
     }
 
+    pub fn js(message: impl Into<String>, source: JsValue) -> Self {
+        Self {
+            kind: AppErrorKind::Js,
+            message: message.into(),
+            source: Some(source),
+        }
+    }
+
+    pub fn clipboard_not_available(source: JsValue) -> Self {
+        Self::js("Clipboard not available", source)
+    }
+
     pub fn failed_to_build_request(source: JsValue) -> Self {
         Self::network("Failed to build request", source)
     }

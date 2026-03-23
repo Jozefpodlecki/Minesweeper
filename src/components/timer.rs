@@ -16,7 +16,6 @@ pub fn timer(props: &Props) -> Html {
     {
         let now = now.clone();
         use_effect(move || {
-            info!("test");
             let window = window().unwrap();
 
             let closure = Closure::wrap(Box::new(move || {

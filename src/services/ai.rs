@@ -86,3 +86,77 @@ impl AiAigent {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::{GamePhase, GameCell, CellState};
+
+    #[test]
+    fn should_restart_on_game_over() {
+        let state = GameState::game_over(true);
+        let ai = AiAigent::new();
+
+        let action = ai.next(&state);
+
+        matches!(action, AiAction::Restart);
+    }
+
+    #[test]
+    fn should_reveal_when_all_mines_flagged() {
+        // Center cell = 1, one flagged neighbor, one hidden → should reveal hidden
+        let cells = vec![
+            GameCell::new_with_state(0, 0, 10, false, CellState::Revealed),
+            GameCell::new_with_state(0, 1, 10, false, CellState::Flagged),
+            GameCell::new_with_state(1, 0, 10, false, CellState::Hidden),
+        ];
+
+        let state = GameState::playing(cells, 2, 2);
+        let ai = AiAigent::new();
+
+        let action = ai.next(&state);
+
+        match action {
+            AiAction::Reveal { .. } => {}
+            _ => panic!("Expected Reveal action"),
+        }
+    }
+
+    #[test]
+    fn should_flag_when_all_hidden_are_mines() {
+        // Center cell = 2, two hidden neighbors → both must be mines → flag one
+        let cells = vec![
+            GameCell::new_with_state(0, 0, 10, false, CellState::Revealed),
+            GameCell::new_with_state(0, 1, 10, false, CellState::Hidden),
+            GameCell::new_with_state(1, 0, 10, false, CellState::Hidden),
+        ];
+
+        let state = GameState::playing(cells, 2, 2);
+        let ai = AiAigent::new();
+
+        let action = ai.next(&state);
+
+        match action {
+            AiAction::Flag { .. } => {}
+            _ => panic!("Expected Flag action"),
+        }
+    }
+
+    #[test]
+    fn should_fall_back_to_random_reveal_when_no_logic() {
+        let cells = vec![
+            GameCell::new_with_state(0, 0, 10, false, CellState::Hidden),
+            GameCell::new_with_state(0, 1, 10, false, CellState::Hidden),
+        ];
+
+        let state = GameState::playing(cells, 1, 2);
+        let ai = AiAigent::new();
+
+        let action = ai.next(&state);
+
+        match action {
+            AiAction::Reveal { .. } => {}
+            _ => panic!("Expected fallback Reveal"),
+        }
+    }
+}

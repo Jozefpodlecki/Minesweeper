@@ -1,7 +1,4 @@
-use std::hint::unreachable_unchecked;
-
-use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
 
 pub trait SystemClock {
     fn utc_now(&self) -> DateTime<Utc>;

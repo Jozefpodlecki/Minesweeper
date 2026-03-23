@@ -6,20 +6,28 @@ use crate::models::Settings;
 pub struct SettingsManager(Storage);
 
 impl SettingsManager {
-    pub fn new() -> Self {
-        unsafe { 
-            let window: Window = window().unwrap_unchecked();
-            let storage: Storage = window.local_storage()
-                .unwrap_unchecked()
-                .unwrap_unchecked();
-            Self(storage)
+    pub fn new(storage: Storage) -> Self {
+        Self(storage)
+    }
+
+    pub fn init(&self) {
+        unsafe {
+            let json = self.0.get_item("settings").unwrap_unchecked();
+            let settings: Option<Settings> = json.and_then(|json| serde_json::from_str(&json).ok()).flatten();
+
+            if settings.is_none() {
+                let settings = settings.unwrap_or_default();
+                let json = serde_json::to_string(&settings).unwrap_unchecked();
+                self.0.set_item("settings", &json).unwrap_unchecked();
+            }
+            
         }
     }
 
-    pub fn get_or_create(&self) -> Settings {
+    pub fn get(&self) -> Settings {
         unsafe {
             let json = self.0.get_item("settings").unwrap_unchecked();
-            let settings = json.and_then(|json| serde_json::from_str(&json).ok()).flatten().unwrap_or_default();
+            let settings = json.and_then(|json| serde_json::from_str(&json).ok()).flatten().unwrap_unchecked();
             settings   
         }
     }

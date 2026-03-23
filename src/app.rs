@@ -1,21 +1,16 @@
 use std::time::Duration;
 
-use gloo::timers::future::sleep;
 use log::info;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, Document, HtmlElement, Window};
+use web_sys::{window, Document, HtmlElement, Navigator, Storage, Window};
 use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
-use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, services::SettingsManager, utils::set_document_version};
+use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, services::{ScreenshotService, SettingsManager, ToastManager}, utils::set_document_version};
 
-async fn fetch_social(app_state: UseStateHandle<AppState>) {
+async fn fetch_social(client: ApiClient, app_state: UseStateHandle<AppState>) {
     app_state.set(AppState::Loading);
-    // app_state.set(AppState::Error(AppError::failed_to_build_request("test".into())));
-    // sleep(Duration::from_secs(2000)).await;
-
-    let client = ApiClient::new();
 
     match client.get_social().await {
         Ok(social) => {
@@ -30,21 +25,40 @@ async fn fetch_social(app_state: UseStateHandle<AppState>) {
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct AppProps {
     pub window: Window,
-    pub document: Document
+    pub document: Document,
+    pub body: HtmlElement,
+    pub local_storage: Storage,
+    pub navigator: Navigator
 }
 
 #[function_component(App)]
 pub fn app(props: &AppProps) -> Html {
+
+    let AppProps {
+        window,
+        document,
+        body,
+        local_storage,
+        navigator
+    } = props; 
+
     let app_state = use_state(AppState::default);
-    let repository = Repository::new();
-    let settings_manager = SettingsManager::new();
-    use_effect_with((), set_document_version);
+    let repository = Repository::new(local_storage.clone());
+    let settings_manager = SettingsManager::new(local_storage.clone());
+    settings_manager.init();
+    let client = ApiClient::new(window.clone());
+    let toast_manager = ToastManager::new(window.clone());
+    let screenshot_service = ScreenshotService::new(document.clone(), body.clone(), navigator.clone());
+
+    use_effect_with(document.clone(), set_document_version);
 
     {
         let app_state = app_state.clone();
+        let client = client.clone();
+
         use_effect_with(
             (),
-            move |_| wasm_bindgen_futures::spawn_local(fetch_social(app_state)),
+            move |_| wasm_bindgen_futures::spawn_local(fetch_social(client, app_state)),
         );
     }
 
@@ -61,7 +75,9 @@ pub fn app(props: &AppProps) -> Html {
 
         Callback::from(move |event: MouseEvent| {
             let app_state = app_state.clone();
-            wasm_bindgen_futures::spawn_local(fetch_social(app_state))
+            let client = client.clone();
+
+            wasm_bindgen_futures::spawn_local(fetch_social(client, app_state))
         })
     };
 
@@ -84,19 +100,23 @@ pub fn app(props: &AppProps) -> Html {
         },
         AppState::Loaded(social) => {
             html! {
-                <ContextProvider<SettingsManager> context={settings_manager}>
-                    <ContextProvider<Repository> context={repository}>
-                        <ContextProvider<Social> context={social.clone()}>
-                            <Layout>
-                                <Settings/>
-                                <Screenshot/>
-                                <HashRouter>
-                                    <Switch<Route> render={switch} />
-                                </HashRouter>
-                            </Layout>
-                        </ContextProvider<Social>>
-                    </ContextProvider<Repository>>
-                </ContextProvider<SettingsManager>>
+                <ContextProvider<ScreenshotService> context={screenshot_service}>
+                    <ContextProvider<ToastManager> context={toast_manager}>
+                        <ContextProvider<SettingsManager> context={settings_manager}>
+                            <ContextProvider<Repository> context={repository}>
+                                <ContextProvider<Social> context={social.clone()}>
+                                    <Layout>
+                                        <Settings/>
+                                        <Screenshot/>
+                                        <HashRouter>
+                                            <Switch<Route> render={switch} />
+                                        </HashRouter>
+                                    </Layout>
+                                </ContextProvider<Social>>
+                            </ContextProvider<Repository>>
+                        </ContextProvider<SettingsManager>>
+                    </ContextProvider<ToastManager>>
+                </ContextProvider<ScreenshotService>>
             }
         },
     }

@@ -1,4 +1,3 @@
-use gloo::storage::{LocalStorage};
 use wasm_bindgen::JsError;
 use web_sys::{window, Storage};
 
@@ -9,15 +8,7 @@ use crate::{game::SavedGameState, models::Record};
 pub struct Repository(Storage);
 
 impl Repository {
-    pub fn new() -> Self {
-        let local_storage: Storage = unsafe {
-            window()
-                .unwrap_unchecked()
-                .local_storage()
-                .unwrap_unchecked()
-                .unwrap_unchecked()
-        };
-
+    pub fn new(local_storage: Storage) -> Self {
         Self(local_storage)
     }
 

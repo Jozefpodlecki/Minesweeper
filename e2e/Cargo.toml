@@ -1,0 +1,9 @@
+[package]
+name = "minesweeper-e2e"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.92.0"
+
+[dependencies]
+thirtyfour = "0.36.1"
+tokio = { version = "1.51.0", features = ["rt", "rt-multi-thread", "macros"] }

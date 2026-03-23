@@ -32,13 +32,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let local_storage = window.local_storage().ok().flatten().expect("Local storage not found");
     let document = window.document().expect("Document object not found");
     let body = document.body().expect("Document body not found");
+    let navigator = window.navigator();
+    // let clipboard = navigator.clipboard();
 
     init(Config::new(log_level));
     console_error_panic_hook::set_once();
 
     let props = AppProps {
         window,
-        document
+        document,
+        body: body.clone(),
+        local_storage,
+        navigator
     };
 
     let renderer = Renderer::<App>::with_root_and_props(body.into(), props);
