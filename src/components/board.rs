@@ -31,7 +31,7 @@ pub fn board(props: &Props) -> Html {
     } = props.clone();
 
     let grid_style = format!(
-        "display: grid; grid-template-columns: repeat({}, 42px); gap: 2px;",
+        "grid-template-columns: repeat({}, 42px); gap: 2px;",
         columns
     );
 
@@ -47,8 +47,8 @@ pub fn board(props: &Props) -> Html {
     }).collect::<Html>();
 
     html! {
-        <div style={grid_style}>
+        <main data-board="" style={grid_style} class="grid">
             { rendered_cells }
-        </div>
+        </main>
     }
 }

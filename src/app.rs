@@ -1,5 +1,4 @@
-use std::time::Duration;
-
+use chrono::{Duration, Utc};
 use log::info;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{window, Document, HtmlElement, Navigator, Storage, Window};
@@ -7,7 +6,7 @@ use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
-use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, Social}, route::{switch, Route}, services::{ScreenshotService, SettingsManager, ToastManager}, utils::set_document_version};
+use crate::{api::ApiClient, components::{Background, Error, Layout, Loader, Screenshot, Settings}, game::Repository, models::{AppError, AppState, GameResult, Social}, route::{switch, Route}, services::{ScreenshotService, SettingsManager, ToastManager}, utils::set_document_version};
 
 async fn fetch_social(client: ApiClient, app_state: UseStateHandle<AppState>) {
     app_state.set(AppState::Loading);
@@ -43,7 +42,45 @@ pub fn app(props: &AppProps) -> Html {
     } = props; 
 
     let app_state = use_state(AppState::default);
-    let repository = Repository::new(local_storage.clone());
+    let mut repository = Repository::new(local_storage.clone());
+
+    repository.clear_records();
+
+    let now = Utc::now();
+
+    repository.set_last_record(GameResult {
+        has_won: true,
+        started_at: now - chrono::Duration::minutes(25),
+        duration: chrono::Duration::minutes(5),
+        rows: 10,
+        columns: 10,
+        revealed_count: 20,
+        mines_count: 50,
+        flags_count: 20
+    });
+
+    repository.set_last_record(GameResult {
+        has_won: false,
+        started_at: now - chrono::Duration::minutes(15),
+        duration: chrono::Duration::minutes(5),
+        rows: 10,
+        columns: 10,
+        revealed_count: 20,
+        mines_count: 50,
+        flags_count: 20
+    });
+
+    repository.set_last_record(GameResult {
+        has_won: true,
+        started_at: now,
+        duration: chrono::Duration::minutes(5),
+        rows: 10,
+        columns: 10,
+        revealed_count: 20,
+        mines_count: 50,
+        flags_count: 20
+    });
+
     let settings_manager = SettingsManager::new(local_storage.clone());
     settings_manager.init();
     let client = ApiClient::new(window.clone());

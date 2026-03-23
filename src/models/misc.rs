@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::{self, Debug, Display, Formatter}, str::FromStr};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 use crate::models::AppError;
@@ -26,13 +26,16 @@ pub struct Social {
     pub portfolio: String
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Record {
-    pub created_on: DateTime<Utc>,
-    pub duration: u32,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GameResult {
     pub has_won: bool,
-    pub revealed_mines: u32,
-    pub total_mines: u32
+    pub started_at: DateTime<Utc>,
+    pub duration: Duration,
+    pub rows: usize,
+    pub columns: usize,
+    pub revealed_count: usize,
+    pub mines_count: usize,
+    pub flags_count: usize
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,6 +44,13 @@ pub enum GameDifficulty {
     Easy,
     Medium,
     Hard
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GameEngine {
+    #[default]
+    Html,
+    Canvas
 }
 
 impl FromStr for GameDifficulty {
@@ -69,6 +79,7 @@ impl fmt::Display for GameDifficulty {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Settings {
     pub difficulty: GameDifficulty,
+    pub engine: GameEngine,
     pub background_url: Option<String>,
     pub persist_game: bool
 }

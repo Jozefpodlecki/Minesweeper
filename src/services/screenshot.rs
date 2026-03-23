@@ -1,14 +1,17 @@
-use chrono::Utc;
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Document, HtmlAnchorElement, HtmlCanvasElement, HtmlElement, Navigator};
-use yew::*;
+use web_sys::{Document, HtmlAnchorElement, HtmlCanvasElement, HtmlElement, Navigator};
 use log::*;
 
-use crate::{ffi::html2canvas, models::AppError, route::Route, services::ToastManager};
-use yew_icons::{Icon, IconData};
+use crate::{ffi::html2canvas, models::AppError};
 
 pub struct ScreenshotOutput(String);
+
+impl ScreenshotOutput {
+    pub fn to_data_url(self) -> String {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScreenshotService {
@@ -26,7 +29,13 @@ impl ScreenshotService {
         }
     }
 
-    pub async fn capture(&self, element: HtmlElement) -> Result<ScreenshotOutput, AppError> {
+    pub async fn capture_body(&self) -> Result<ScreenshotOutput, AppError> {
+        self.capture(&self.body).await
+    }
+
+    pub async fn capture(&self, element: &HtmlElement) -> Result<ScreenshotOutput, AppError> {
+        debug!("Capturing screenshot of element");
+
         let promise = html2canvas(element.into())?;
         let canvas = JsFuture::from(promise).await?;
         let canvas: HtmlCanvasElement = canvas.unchecked_into();
@@ -40,21 +49,25 @@ impl ScreenshotService {
     }
 
     pub async fn copy_to_clipboard(&self, data_url: &str) -> Result<(), AppError> {
+        debug!("Copying to cliboard");
         let clipboard = self.navigator.clipboard();
 
         JsFuture::from(clipboard.write_text(data_url)).await?;
+
         Ok(())
     }
 
-    pub fn download(&self, data_url: &str, filename: &str) {
+    pub fn download(&self, output: ScreenshotOutput, file_name: &str) {
         unsafe {
+            debug!("Triggering download: {}", file_name);
+            
             let anchor: HtmlAnchorElement = self.document
                 .create_element("a")
                 .unwrap_unchecked()
                 .unchecked_into();
 
-            anchor.set_href(data_url);
-            anchor.set_download(filename);
+            anchor.set_href(&output.to_data_url());
+            anchor.set_download(file_name);
 
             let anchor_style = anchor.style();
             anchor_style.set_property("display", "none").unwrap_unchecked();

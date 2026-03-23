@@ -65,7 +65,7 @@ pub fn game_cell(props: &Props) -> Html {
             data-id={cell.id.to_string()}
             data-row={cell.row.clone()}
             data-column={cell.column.clone()}
-            key={cell.key.clone()}
+            key={&*cell.key}
             class={classes}
             onclick={&props.on_reveal}
             oncontextmenu={&props.on_toggle_flag}

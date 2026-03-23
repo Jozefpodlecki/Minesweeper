@@ -22,10 +22,10 @@ use yew::Renderer;
 use crate::app::AppProps;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let log_level = if cfg!(debug_assertions) {
+    let mut log_level = if cfg!(debug_assertions) {
         Level::Debug
     } else {
-        Level::Info
+        Level::Error
     };
 
     let window = window().expect("Windows object not found");
@@ -33,7 +33,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let document = window.document().expect("Document object not found");
     let body = document.body().expect("Document body not found");
     let navigator = window.navigator();
-    // let clipboard = navigator.clipboard();
+    
+    let log_level_str = local_storage
+        .get_item("RUST_LOG")
+        .ok()
+        .flatten();
+
+    if let Some(level_str) = log_level_str {
+        log_level = match level_str.to_lowercase().as_str() {
+            "error" => Level::Error,
+            "warn" | "warning" => Level::Warn,
+            "info" => Level::Info,
+            "debug" => Level::Debug,
+            "trace" => Level::Trace,
+            _ => log_level,
+        };
+    }
 
     init(Config::new(log_level));
     console_error_panic_hook::set_once();

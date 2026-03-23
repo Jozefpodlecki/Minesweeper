@@ -1,80 +1,67 @@
 use wasm_bindgen::JsError;
 use web_sys::{window, Storage};
 
-use crate::{game::SavedGameState, models::Record};
+use crate::{game::SavedGameState, models::{GameResult}};
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Repository(Storage);
+pub struct Repository {
+    items: Vec<GameResult>,
+    local_storage: Storage
+}
 
 impl Repository {
     pub fn new(local_storage: Storage) -> Self {
-        Self(local_storage)
-    }
 
-    pub fn get_last_records(&self) -> Vec<Record> {
-        unsafe {
-            let json = self.0.get_item("records").unwrap_unchecked();
+        let items = unsafe {
+            let json = local_storage.get_item("records").unwrap_unchecked();
             let records = json.and_then(|json| serde_json::from_str(&json).unwrap_unchecked());
             records.unwrap_or_default()
+        };
+
+        Self {
+            items,
+            local_storage
         }
     }
 
-    pub fn set_last_record(&self, value: Record) -> Result<(), JsError> {
-        Ok(())
+    pub fn clear_records(&mut self) {
+        unsafe { self.local_storage.remove_item("records").unwrap_unchecked(); }
     }
 
-    pub fn get_last_state(&self) -> Option<SavedGameState> {
-        None
-        // let records = self.0.get_item(key);
-        // ::get::<SavedGameState>("state");
+    pub fn get_last_records<'a>(&'a self) -> &'a [GameResult] {
+        // self.items.sort_by_key(|r| r.created_on);
+        let len = self.items.len();
+        let start = len.saturating_sub(5);
 
-        // records.ok()
-        //  let key = key.as_ref();
-        // let item = Self::raw()
-        //     .get_item(key)
-        //     .expect_throw("unreachable: get_item does not throw an exception")
-        //     .ok_or_else(|| StorageError::KeyNotFound(key.to_string()))?;
-        // let item = serde_json::from_str(&item)?;
-        // Ok(item)
+        &self.items[start..]
+    }
+
+    pub fn set_last_record(&mut self, value: GameResult) {
+        unsafe {
+            self.items.push(value);
+
+            if self.items.len() > 5 {
+                self.items.remove(0);
+            }
+
+            let json = serde_json::to_string(&self.items).unwrap_unchecked();
+            self.local_storage.set_item("records", &json).unwrap_unchecked();
+        }
+    }
+
+    pub fn save_game_session(&self, value: SavedGameState) {
+        unsafe {
+            let json = serde_json::to_string(&value).unwrap_unchecked();
+            self.local_storage.set_item("state", &json).unwrap_unchecked();
+        }
+    }
+
+    pub fn get_last_game_session(&self) -> Option<SavedGameState> {
+        unsafe {
+            let json = self.local_storage.get_item("state").unwrap_unchecked();
+            let state = json.map(|json| serde_json::from_str(&json).unwrap_unchecked());
+            state
+        }
     }
 }
-
-
-
-// pub fn get_last_state() -> Option<SavedGameState> {
-//     let records = LocalStorage::get::<SavedGameState>("state");
-
-//     records.ok()
-// }
-
-// pub fn save_state(value: SavedGameState) -> Result<(), JsError> {
-//     LocalStorage::set("state", value)
-//         .map_err(|err| {
-//             let js_error = js_sys::Error::new(&err.to_string());
-//             JsError::from(js_error)
-//         })?;
-
-//     Ok(())
-// }
-
-// pub fn get_last_records() -> Vec<Record> {
-//     let records = LocalStorage::get::<Vec<Record>>("records");
-
-//     records.unwrap_or_default()
-// }
-
-// pub fn set_last_record(value: Record) -> Result<(), JsError> {
-//     let records = LocalStorage::get::<Vec<Record>>("records");
-//     let mut records = records.unwrap_or_default();
-
-//     records.push(value);
-
-//     LocalStorage::set("records", records)
-//         .map_err(|err| {
-//             let js_error = js_sys::Error::new(&err.to_string());
-//             JsError::from(js_error)
-//         })?;
-
-//     Ok(())
-// }

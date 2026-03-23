@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use js_sys::Function;
-use log::info;
+use log::*;
 use rand::seq::IndexedRandom;
 use wasm_bindgen::{prelude::{Closure, ScopedClosure}, JsCast};
 use web_sys::window;
@@ -9,15 +9,15 @@ use yew::*;
 use yew_icons::{Icon, IconData};
 use yew_router::prelude::Link;
 
-use crate::{components::{GameBoard, Timer}, game::{CellState, GameCell, GamePhase, GameSettings, GameState}, route::Route, services::{AiAction, AiAigent, SystemClock}};
+use crate::{components::{GameBoard, Timer}, game::{CellState, GameCell, GamePhase, GameSettings, GameState}, models::GameDifficulty, route::Route, services::{AiAction, AiAigent, SystemClock}};
 
 #[function_component(AiPlaying)]
 pub fn ai_playing() -> Html {
     let game_state = use_state(|| {
-        let state = GameState::default().play(GameSettings::hard());
+        let state = GameState::default().play(GameSettings::from_difficulty(15, 15, GameDifficulty::Hard));
         state
     } );
-    let runner = use_state(|| Rc::new(RefCell::new(AiAigent::new())));
+    let runner = use_state(|| Rc::new(AiAigent::new()));
 
     {
         let game_state = game_state.clone();
@@ -28,21 +28,28 @@ pub fn ai_playing() -> Html {
 
                 let window = window().unwrap();
                 let timeout_callback: Rc<RefCell<Option<ScopedClosure<'static, _>>>> = Rc::new(RefCell::new(None));
+                let timeout = match &game_state.phase() {
+                    GamePhase::Idle => 250,
+                    GamePhase::Initializing { .. } => 500,
+                    GamePhase::Playing { .. } => 250,
+                    GamePhase::GameOver { .. } => 1500,
+                };
 
                 *timeout_callback.borrow_mut() = Some(Closure::wrap(Box::new(move || {
  
-                    let action = runner.borrow_mut().next(&game_state);
+                    let action = runner.next(&game_state);
+                    debug!("{action}");
 
                     match action {
                         AiAction::None => return,
-                        AiAction::Reveal { col, row } => {
+                        AiAction::Reveal { column, row, .. } => {
                             let next_state = (&*game_state).clone();
-                            let next_state = next_state.reveal(row, col);
+                            let next_state = next_state.reveal(row, column);
                             game_state.set(next_state);
                             
                         },
-                        AiAction::Flag { col, row } => {
-                            let next_state = game_state.toggle_flag(row, col);
+                        AiAction::Flag { column, row, .. } => {
+                            let next_state = game_state.toggle_flag(row, column);
                             game_state.set(next_state);
                         },
                         AiAction::Restart => {
@@ -54,8 +61,14 @@ pub fn ai_playing() -> Html {
 
                 let mut timeout_callback_borrow = timeout_callback.borrow_mut();
                 let callback = timeout_callback_borrow.take().unwrap();
-                let next_handle = window.set_timeout_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), 250).unwrap();
+                let js_function = callback.as_ref().unchecked_ref();
+
+                let handle = window.set_timeout_with_callback_and_timeout_and_arguments_0(js_function, timeout).unwrap();
                 callback.forget();
+
+                move || {
+                    window.clear_timeout_with_handle(handle);
+                }
             });
     }
   
@@ -68,7 +81,7 @@ pub fn ai_playing() -> Html {
 
                 html! {
                     <>
-                        <div class="flex items-center gap-1 mb-2 px-2">
+                        <div data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
                             <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                             <span>{format!("Mines: {}", mines_left)}</span>
                         </div>
@@ -88,11 +101,11 @@ pub fn ai_playing() -> Html {
 
                 html! {
                     <>
-                        <div class="flex items-center gap-1 mb-2 px-2 text-white">
+                        <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2 text-white">
                             <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                             <span>{format!("Mines: {}", mines_left)}</span>
                             <Timer started_at={*started_at} />
-                        </div>
+                        </header>
                         <GameBoard
                             cells={cells.clone()}
                             columns={*columns}
@@ -109,10 +122,11 @@ pub fn ai_playing() -> Html {
 
                 html! {
                     <>
-                        <div class="flex items-center gap-1 mb-2 px-2">
+                        <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
+
                             <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                             <span>{format!("Mines: {}", mines_left)}</span>
-                        </div>
+                        </header>
                         <GameBoard
                             cells={cells.clone()}
                             columns={*columns}

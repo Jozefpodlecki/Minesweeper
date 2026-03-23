@@ -1,9 +1,8 @@
-use std::hint::unreachable_unchecked;
-
 use chrono::{DateTime, Duration, Utc};
-use gloo::console::info;
-use rand::{rng, seq::SliceRandom};
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
+
+use crate::models::GameDifficulty;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CellState {
@@ -13,10 +12,24 @@ pub enum CellState {
     Flagged,
 }
 
+pub struct DisplayValue {
+    pub raw: usize,
+    pub formatted: Box<str>
+}
+
+impl DisplayValue {
+    pub fn new(raw: usize) -> Self {
+        Self {
+            raw,
+            formatted: raw.to_string().into()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GameCell {
     pub id: usize,
-    pub key: String,
+    pub key: Box<str>,
     pub row_id: usize,
     pub column_id: usize,
     pub row: String,
@@ -29,24 +42,24 @@ pub struct GameCell {
 
 impl GameCell {
     #[cfg(test)]
-    pub fn new_with_state(row_id: usize, column_id: usize, columns: usize, is_mine: bool, state: CellState) -> Self {
+    pub fn test(row_id: usize, column_id: usize, columns: usize, is_mine: bool, neighbor_mines: usize, state: CellState) -> Self {
         Self {
             id: row_id * columns + column_id,
-            key: format!("{}-{}", row_id, column_id),
+            key: format!("{}-{}", row_id, column_id).into(),
             row_id,
             column_id,
             row: row_id.to_string(),
             column: column_id.to_string(),
             is_mine,
             state,
-            neighbor_mines: 0,
+            neighbor_mines,
         }
     }
 
     pub fn new(row_id: usize, column_id: usize, columns: usize) -> Self {
         Self {
             id: row_id * columns + column_id,
-            key: format!("{}-{}", row_id, column_id),
+            key: format!("{}-{}", row_id, column_id).into(),
             row_id,
             column_id,
             row: row_id.to_string(),
@@ -85,11 +98,17 @@ impl Default for GameSettings {
 }
 
 impl GameSettings {
-    pub fn hard() -> Self {
-        Self {
-            rows: 15,
-            columns: 15,
-            mines_count: 50
-        }
+    pub fn from_difficulty(rows: usize, columns: usize, difficulty: GameDifficulty) -> Self {
+        let mut rng = rand::rng();
+
+        let density = match difficulty {
+            GameDifficulty::Easy => rng.random_range(0.10..0.14),
+            GameDifficulty::Medium => rng.random_range(0.15..0.19),
+            GameDifficulty::Hard => rng.random_range(0.24..0.29),
+        };
+
+        let mines_count = (rows * columns) as f64 * density;
+
+        Self { rows, columns, mines_count: mines_count as usize }
     }
 }

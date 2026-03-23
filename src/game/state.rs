@@ -7,8 +7,7 @@ use crate::{
         logic,
         model::{CellState, GameCell, SavedGameState},
         phase::GamePhase, GameSettings,
-    },
-    services::{DefaultSystemClock, SystemClock},
+    }, models::GameResult, services::{DefaultSystemClock, SystemClock}
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,13 +47,19 @@ impl<SC: Clone + SystemClock> GameState<SC> {
 
     pub fn restart(&self) -> Self {
         let phase = match self.phase.clone() {
-            GamePhase::GameOver { cells, rows, columns, .. } => {
+            GamePhase::GameOver { mut cells, rows, columns, mines_count, .. } => {
+
+                for cell in &mut cells {
+                    cell.neighbor_mines = 0;
+                    cell.state = CellState::Hidden;
+                    cell.is_mine = false;
+                }
 
                 GamePhase::Initializing {
                     cells,
                     rows,
                     columns,
-                    mines_count: 0,
+                    mines_count,
                 }
             },
             _=> unsafe { unreachable_unchecked() }
@@ -288,10 +293,36 @@ impl<SC: Clone + SystemClock> GameState<SC> {
         }
     }
 
-    /// Convert finished game into a saved state
-    pub fn to_state(self) -> SavedGameState {
-        match self.phase {
+    pub fn to_result(&self) -> GameResult {
+        match self.phase.clone() {
             GamePhase::GameOver {
+                has_won,
+                started_at,
+                rows,
+                columns,
+                mines_count,
+                revealed_count,
+                flags_count,
+                duration,
+                ..
+            } => GameResult {
+                rows,
+                columns,
+                has_won,
+                started_at,
+                duration,
+                revealed_count,
+                mines_count,
+                flags_count
+            },
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+
+    /// Convert finished game into a saved state
+    pub fn to_state(&self) -> SavedGameState {
+        match self.phase.clone() {
+            GamePhase::Playing {
                 cells,
                 rows,
                 columns,
@@ -317,6 +348,21 @@ impl GameState<DefaultSystemClock> {
         Self {
             clock: DefaultSystemClock::default(),
             phase: GamePhase::default(),
+        }
+    }
+
+    pub fn initializing(rows: usize, columns: usize) -> Self {
+        let clock = DefaultSystemClock::default();
+        let cells = logic::initialize_cells(rows, columns);
+
+        Self {
+            clock,
+            phase: GamePhase::Initializing {
+                cells,
+                rows,
+                columns,
+                mines_count: 0
+            },
         }
     }
 

@@ -19,6 +19,7 @@ pub struct Props {
 #[function_component(Content)]
 pub fn content(props: &Props) -> Html {
     
+    let repository = unsafe { use_context::<Repository>().unwrap_unchecked() };
     let game_state = use_state(|| GameState::default() );
     // let game_state = use_state(|| GameState::default().play(Default::default()) );
     // let game_state = use_state(|| GameState::game_over(true) );
@@ -74,7 +75,9 @@ pub fn content(props: &Props) -> Html {
             move |game_state| {
                 match game_state.phase() {
                     GamePhase::Playing { .. } => {
-                        info!("playing");
+                        // info!("playing");
+                        let value = game_state.to_state();
+                        repository.save_game_session(value);
                     },
                     GamePhase::GameOver { .. } => {
                         info!("over");
@@ -92,16 +95,20 @@ pub fn content(props: &Props) -> Html {
                     html! {
                         <main class={"flex flex-col justify-center items-center h-200"}>
                             <AiPlaying/>
-                            <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                               <button 
-                                    type="button" 
-                                    onclick={&on_play} 
-                                    class="flex gap-2 border-white border-2 p-4 mx-auto hover:bg-black/30 hover:scale-105 transition-all duration-200"
-                                >
-                                    <span class="dark:text-white">{"Play"}</span>
-                                    <Icon class="dark:text-white" data={IconData::LUCIDE_PLAY} width={"20px"}/>
-                                </button>
-                                <Records/>
+                            <div data-overlay="" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                               <div class="flex flex-col">
+                                    <Records/>
+                                    <button
+                                        data-action="play"
+                                        type="button" 
+                                        onclick={&on_play} 
+                                        class="flex justify-center gap-2 w-30 border-white border-2 p-2 mx-auto hover:bg-black/30 hover:scale-105 transition-all duration-200 dark:text-white mt-2"
+                                    >
+                                        <span class="">{"Play"}</span>
+                                        <Icon class="" data={IconData::LUCIDE_PLAY} width={"20px"}/>
+                                    </button>
+                               </div>
+                               
                             </div>
                         </main>
                     }
@@ -109,11 +116,11 @@ pub fn content(props: &Props) -> Html {
                 GamePhase::Initializing { cells, columns, .. } => {
                     html! {
                         <main class="flex flex-col text-white h-200">
-                            <div class="flex items-center gap-1 mb-2 px-2">
+                            <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
                                 <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                                 <span>{format!("Mines: {}", 0)}</span>
                                 // <span>{format!("Time: {}s", seconds)}</span>
-                            </div>
+                            </header>
                             <GameBoard
                                 cells={cells.clone()}
                                 columns={*columns}
@@ -121,12 +128,12 @@ pub fn content(props: &Props) -> Html {
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
                             />
-                            <div class="flex mt-4">
+                            <footer class="flex mt-4">
                                 <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
                                     <span>{"Reset"}</span>
                                     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                                 </button>
-                            </div>
+                            </footer>
                         </main>
                     }
                 },
@@ -136,11 +143,11 @@ pub fn content(props: &Props) -> Html {
 
                     html! {
                         <main class="flex flex-col text-white h-200">
-                            <div class="flex items-center gap-1 mb-2 px-2">
+                            <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
                                 <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                                 <span>{format!("Mines: {}", mines_left)}</span>
                                 // <span>{format!("Time: {}s", seconds)}</span>
-                            </div>
+                            </header>
                             <GameBoard
                                 cells={cells.clone()}
                                 columns={*columns}
@@ -148,12 +155,12 @@ pub fn content(props: &Props) -> Html {
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
                             />
-                            <div class="flex mt-4">
+                            <footer class="flex mt-4">
                                 <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
                                     <span>{"Reset"}</span>
                                     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                                 </button>
-                            </div>
+                            </footer>
                         </main>
                     }
                 },
@@ -163,11 +170,11 @@ pub fn content(props: &Props) -> Html {
 
                     html! {
                         <main class="flex flex-col text-white h-200">
-                            <div class="flex items-center gap-1 mb-2 px-2">
+                            <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
                                 <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
                                 <span>{format!("Mines: {}", mines_left)}</span>
                                 // <span>{format!("Time: {}s", seconds)}</span>
-                            </div>
+                            </header>
                             <GameBoard
                                 cells={cells.clone()}
                                 columns={*columns}
@@ -175,12 +182,12 @@ pub fn content(props: &Props) -> Html {
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={true}
                             />
-                            <div class="flex mt-4">
+                            <footer data-footer="" class="flex mt-4">
                                 <button disabled={true} type="button" onclick={&on_play} class="flex text-white p-2 border gap-2">
                                     <span>{"Reset"}</span>
                                     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                                 </button>
-                            </div>
+                            </footer>
                             <GameOver has_won={has_won} on_play={&on_play} />
                         </main>
                     }
