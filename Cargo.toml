@@ -1,9 +1,14 @@
+[workspace]
+members = [
+    "e2e"
+]
+
 [package]
 name = "minesweeper"
 version = "0.1.0"
 authors = ["Józef Podlecki <jozef.witold.podlecki@gmail.com>"]
 edition = "2024"
-repository = "https://github.com/Jozefpodlecki/lm-studio-api-rs"
+repository = "https://github.com/Jozefpodlecki/minesweeper"
 description = ""
 categories = []
 keywords = []
@@ -35,16 +40,23 @@ features = [
     "Document",
     "Navigator",
     "Clipboard",
+    "ClipboardEvent",
     "HtmlElement",
     "HtmlInputElement",
     "HtmlSelectElement",
     "HtmlCanvasElement",
     "HtmlAnchorElement",
+    "BeforeUnloadEvent",
     "CssStyleDeclaration",
     "MouseEvent",
     "DomRect",
     "DomTokenList",
-    "DomStringMap"
+    "DomStringMap",
+    "DragEvent",
+    "DataTransfer",
+    "File",
+    "FileList",
+    "FileReader",
 ]
 
 [profile.release]

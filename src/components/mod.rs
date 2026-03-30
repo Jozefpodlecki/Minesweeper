@@ -12,6 +12,7 @@ mod game_over;
 mod ai_playing;
 mod timer;
 mod error;
+mod unsaved_guard;
 
 pub use background::*;
 pub use content::*;

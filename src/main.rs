@@ -35,6 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let local_storage = window.local_storage().ok().flatten().expect("Local storage not found");
     let document = window.document().expect("Document object not found");
     let body = document.body().expect("Document body not found");
+    let root = document.get_element_by_id("root").expect("Root element not found");
     let navigator = window.navigator();
     
     let log_level_str = local_storage
@@ -56,7 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     init(Config::new(log_level));
     console_error_panic_hook::set_once();
 
+    let version = env!("CARGO_PKG_VERSION").into();
+
     let props = AppProps {
+        version,
         window,
         document,
         body: body.clone(),
@@ -64,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         navigator
     };
 
-    let renderer = Renderer::<App>::with_root_and_props(body.into(), props);
+    let renderer = Renderer::<App>::with_root_and_props(root, props);
     renderer.render();
 
     Ok(())

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use chrono::{Duration, Utc};
 use log::info;
 use wasm_bindgen::{JsCast, JsValue};
@@ -23,6 +25,7 @@ async fn fetch_social(client: ApiClient, app_state: UseStateHandle<AppState>) {
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct AppProps {
+    pub version: Rc<str>,
     pub window: Window,
     pub document: Document,
     pub body: HtmlElement,
@@ -34,6 +37,7 @@ pub struct AppProps {
 pub fn app(props: &AppProps) -> Html {
 
     let AppProps {
+        version,
         window,
         document,
         body,
@@ -93,7 +97,7 @@ pub fn app(props: &AppProps) -> Html {
     let toast_manager = ToastManager::new(window.clone());
     let screenshot_service = ScreenshotService::new(document.clone(), body.clone(), navigator.clone());
 
-    use_effect_with(document.clone(), set_document_version);
+    use_effect_with((version.clone(), document.clone()), set_document_version);
 
     {
         let app_state = app_state.clone();

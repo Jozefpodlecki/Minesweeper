@@ -5,19 +5,13 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 use crate::models::AppError;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub enum AppState {
+    #[default]
     Loading,
     Error(AppError),
     Loaded(Social)
 }
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self::Loading
-    }
-}
-    
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize)]
 pub struct Social {

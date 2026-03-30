@@ -1,4 +1,6 @@
-use web_sys::{File, HtmlInputElement, HtmlSelectElement};
+use log::*;
+use wasm_bindgen::{prelude::Closure, JsCast};
+use web_sys::{File, FileReader, HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
 use crate::{components::DragAndDrop, models::*, services::{DefaultSystemClock, SystemClock}};
@@ -54,7 +56,7 @@ pub fn background_selector(props: &Props) -> Html {
             let input: HtmlInputElement = event.target_unchecked_into();
             let url = input.value();
 
-
+            info!("{url}");
 
             let value = BackgroundSource::Url {
                 uploaded_on: clock.utc_now(),
@@ -66,21 +68,53 @@ pub fn background_selector(props: &Props) -> Html {
         })            
     };
 
-    let on_file: Callback<File> = {
+    let on_file: Callback<Option<File>> = {
+        let selected = selected.clone();
         let clock = clock.clone();
         let on_change = on_change.clone();
 
-        Callback::from(move |file: File| {
-            // let input: HtmlInputElement = event.target_unchecked_into();
-            // let url = input.value();
+        Callback::from(move |file: Option<File>| {
+            let selected = selected.clone();
+            let clock = clock.clone();
+            let on_change = on_change.clone();
 
-            let value = BackgroundSource::FileSystem {
-                uploaded_on: clock.utc_now(),
-                file_name: "".into(),
-                data_url: "".into()
+            let file = match file {
+                Some(value) => value,
+                None => {
+                    let mut selected1 = (*selected).clone();
+                    
+                    if let BackgroundSource::FileSystem { data_url, .. } = &mut selected1 {
+                        *data_url = "".into();
+                    }
+
+                    selected.set(selected1.clone());
+                    on_change.emit(selected1);
+
+                    return;
+                },
             };
 
-            on_change.emit(value);
+            let file_reader = FileReader::new().unwrap();
+            let file_name = file.name();
+
+            let onload = Closure::<dyn FnMut(ProgressEvent)>::new(move |event: ProgressEvent| {
+                let reader = event.target().unwrap().unchecked_into::<FileReader>();
+                let result = reader.result().unwrap();
+                let data_url = result.as_string().unwrap();
+
+                let value = BackgroundSource::FileSystem {
+                    uploaded_on: clock.utc_now(),
+                    file_name: file_name.clone().into(),
+                    data_url: data_url.into(),
+                };
+
+                selected.set(value.clone());
+                on_change.emit(value);
+            });
+
+            file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
+            onload.forget();
+            file_reader.read_as_data_url(&file).unwrap();
         })          
     };
 
@@ -93,29 +127,31 @@ pub fn background_selector(props: &Props) -> Html {
                 <option value="url" selected={"url" == bg_type}>{"URL"}</option>
             </select>
 
-            {
-                match &*selected {
-                    BackgroundSource::FileSystem { data_url, file_name, .. } => html! {
-                        <>
-                            <DragAndDrop on_change={on_file} />
-                            <img data-file-name={file_name.to_string()} src={data_url.to_string()} class="" tag="preview-thumbnail" />
-                        </>
-                    },
-                    BackgroundSource::Url { url, data_url, .. } => html! {
-                        <>
-                            <input
-                                type="text"
-                                class="mt-1 p-2 bg-black border"
-                                value={url.to_string()}
-                                oninput={on_url}
-                                placeholder={"Enter url"}
-                            />
-                            <img src={data_url.to_string()} class="" tag="preview-thumbnail" />
-                        </>
-                    },
-                    _ => html! {},
+            <div class="mt-4 flex">
+                {
+                    match &*selected {
+                        BackgroundSource::FileSystem { data_url, file_name, .. } => html! {
+                            <div class="flex-1">
+                                <DragAndDrop data_url={(!data_url.is_empty()).then(|| data_url.to_owned())} on_change={on_file} />
+                                // <img data-file-name={file_name.to_string()} src={data_url.to_string()} class="" tag="preview-thumbnail" />
+                            </div>
+                        },
+                        BackgroundSource::Url { url, data_url, .. } => html! {
+                            <>
+                                <input
+                                    type="text"
+                                    class="mt-1 p-2 bg-black border flex-1"
+                                    value={url.to_string()}
+                                    oninput={on_url}
+                                    placeholder={"Enter url or copy from clipboard..."}
+                                />
+                                <img src={data_url.to_string()} class="" tag="preview-thumbnail" />
+                            </>
+                        },
+                        _ => html! {},
+                    }
                 }
-            }
+            </div>
         </label>
     }
 }

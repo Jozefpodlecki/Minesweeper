@@ -5,7 +5,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, HtmlSelectElement};
 use yew::*;
 
-use crate::{components::{BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
+use crate::{components::{unsaved_guard::UnsavedGuard, BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
 use yew_icons::{Icon, IconData};
 
 #[derive(Default)]
@@ -52,7 +52,9 @@ pub struct Props {
 pub fn settings(props: &Props) -> Html {
     let is_open = use_state(|| true);
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
+    let prev_settings = use_state(|| settings_manager.get() );
     let settings = use_state(|| settings_manager.get() );
+    let has_changes = prev_settings != settings;
    
     let on_action: Callback<MouseEvent> = {
         let is_open = is_open.clone();
@@ -98,11 +100,9 @@ pub fn settings(props: &Props) -> Html {
         let settings = settings.clone();
 
         Callback::from(move |value: BackgroundSource| {
-            // let input: HtmlInputElement = event.target_unchecked_into();
-            // let mut next = (*settings).clone();
-            // next.background_url = Some(input.value());
-            // settings.set(next);
-            
+            let mut next = (*settings).clone();
+            next.background = value;
+            settings.set(next);
         })
     };
 
@@ -136,48 +136,59 @@ pub fn settings(props: &Props) -> Html {
 
             if *is_open {
                 <div
+                    data-modal=""
                     data-action="close"
                     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
                     onclick={&on_action}
                 >
+                    if has_changes {
+                        <UnsavedGuard/>
+                    }
                     <div
-                        class="bg-black/70 text-white p-6 rounded shadow-lg min-w-[300px]"
+                        class="flex flex-col bg-black/70 text-white p-6 rounded shadow-lg min-w-[400px] h-150"
                         onclick={stop_propagation}
                     >
-                        <div class="flex flex-col gap-3 mb-4">
+                        <div class="flex justify-center items-center gap-2 mb-4">
+                            <h1 class="text-3xl">{"Settings"}</h1>
+                            <Icon data={IconData::LUCIDE_SETTINGS} width={"30px"} />
+                        </div>
+                        <div class="flex-1 flex flex-col gap-3 mb-4">
                             <DifficultySelector value={settings.difficulty} on_change={on_difficulty_change} />
                             <BackgroundSelector value={settings.background.clone()} on_change={on_background_change} />
 
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3 p-2 rounded hover:bg-white/5 transition cursor-pointer">
                                 <input
+                                    id="persist-game"
                                     type="checkbox"
                                     checked={settings.persist_game}
                                     onchange={on_persist_change}
+                                    class="w-4 h-4 accent-white cursor-pointer"
                                 />
-                                <label class="text-sm">
+                                <label for="persist-game" class="text-sm text-gray-200 cursor-pointer select-none">
                                     {"Save game progress"}
                                 </label>
                             </div>
 
                         </div>
-                        <footer class="flex">
+                        <footer class="flex gap-2 p-2">
                             <button
+                                disabled={!has_changes}
                                 data-action="save"
                                 type="button"
                                 onclick={&on_action}
-                                class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
+                                class="flex items-center gap-1 mt-2 px-4 py-2 border enabled:hover:bg-white/10 disabled:opacity-50 transition"
                             >
                                 {"Save"}
-                                <Icon data={IconData::LUCIDE_DISC} width={"20px"}/>
+                                <Icon data={IconData::LUCIDE_HARD_DRIVE} width={"15px"}/>
                             </button>
                             <button
                                 data-action="close"
                                 type="button"
                                 onclick={&on_action}
-                                class="flex gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
+                                class="flex items-center gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
                             >
                                 {"Close"}
-                                <Icon data={IconData::LUCIDE_CROSS} width={"20px"}/>
+                                <Icon data={IconData::LUCIDE_X} width={"15px"}/>
                             </button>
                         </footer>
                     </div>
