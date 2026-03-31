@@ -23,7 +23,7 @@ impl Component for Layout {
     fn view(&self, context: &Context<Self>) -> Html {
         html! {
             <>
-                <Background src="public/background.jpg"/>
+                <Background/>
                 {context.props().children.clone()}
             </>
         }

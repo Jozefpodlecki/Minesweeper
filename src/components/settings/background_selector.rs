@@ -1,9 +1,9 @@
 use log::*;
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::{File, FileReader, HtmlInputElement, HtmlSelectElement};
+use web_sys::{File, FileReader, HtmlImageElement, HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
-
-use crate::{components::DragAndDrop, models::*, services::{DefaultSystemClock, SystemClock}};
+use url::Url;
+use crate::{api::ApiClient, components::DragAndDrop, models::*, services::{DefaultSystemClock, SystemClock}};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -18,10 +18,11 @@ pub fn background_selector(props: &Props) -> Html {
     let clock = DefaultSystemClock;
     let bg_type = value.name();
     let selected = use_state(|| value.clone() );
+    let error = use_state(|| None);
+    let background_manager = use_context::<HtmlImageElement>().unwrap();
+    let api_client = use_context::<ApiClient>().unwrap();
 
     let on_type_change = {
-        let clock = clock.clone();
-        let on_change = on_change.clone();
         let selected = selected.clone();
         
         Callback::from(move |event: Event| {
@@ -44,27 +45,58 @@ pub fn background_selector(props: &Props) -> Html {
             };
 
             selected.set(next_bg);
-            // on_change.emit(next_bg);
         })
     };
 
     let on_url = {
+        let selected = selected.clone();
         let clock = clock.clone();
         let on_change = on_change.clone();
-
+        let api_client = api_client.clone();
+        let error = error.clone();
+        
         Callback::from(move |event: InputEvent| {
             let input: HtmlInputElement = event.target_unchecked_into();
             let url = input.value();
+            let api_client = api_client.clone();
+            let error = error.clone();
 
-            info!("{url}");
-
-            let value = BackgroundSource::Url {
+            let mut value = BackgroundSource::Url {
                 uploaded_on: clock.utc_now(),
-                url: "".into(),
+                url: url.clone().into(),
                 data_url: "".into()
             };
 
-            on_change.emit(value);
+            selected.set(value.clone());
+
+            match Url::parse(&url) {
+                Ok(url) => {
+                    wasm_bindgen_futures::spawn_local(async move {
+                        // let client = 
+                        match api_client.get_image(url.as_str()).await {
+                            Ok(blob) => {
+                                match ApiClient::blob_to_data_url(&blob).await {
+                                    Ok(data_url) => {
+                                        let mut value = BackgroundSource::Url {
+                                            uploaded_on: clock.utc_now(),
+                                            url: url.as_str().into(),
+                                            data_url: data_url.into()
+                                        };
+                                        on_change.emit(value);
+                                    },
+                                    Err(err) => {
+                                        error.set(Some(err));
+                                    },
+                                }
+                            },
+                            Err(err) => {
+                                error.set(Some(err));
+                            },
+                        }
+                    });
+                },
+                Err(err) => {},
+            }
         })            
     };
 
@@ -133,7 +165,6 @@ pub fn background_selector(props: &Props) -> Html {
                         BackgroundSource::FileSystem { data_url, file_name, .. } => html! {
                             <div class="flex-1">
                                 <DragAndDrop data_url={(!data_url.is_empty()).then(|| data_url.to_owned())} on_change={on_file} />
-                                // <img data-file-name={file_name.to_string()} src={data_url.to_string()} class="" tag="preview-thumbnail" />
                             </div>
                         },
                         BackgroundSource::Url { url, data_url, .. } => html! {
@@ -148,7 +179,9 @@ pub fn background_selector(props: &Props) -> Html {
                                 <img src={data_url.to_string()} class="" tag="preview-thumbnail" />
                             </>
                         },
-                        _ => html! {},
+                        BackgroundSource::Default => html! {
+                            <img src={background_manager.src()} class="" tag="preview-thumbnail" />
+                        },
                     }
                 }
             </div>

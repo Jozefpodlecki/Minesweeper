@@ -28,7 +28,7 @@ pub fn drag_and_drop(props: &Props) -> Html {
     let input_ref = use_node_ref();
     let hover = use_state(|| false);
     let error = use_state(|| Option::<String>::None);
-    info!("props.data_url={:?}", props.data_url);
+    // info!("props.data_url={:?}", props.data_url);
     let on_drag_over: Callback<DragEvent> = {
         let hover = hover.clone();
         Callback::from(move |event: DragEvent| {

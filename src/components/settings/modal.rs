@@ -44,17 +44,23 @@ fn resolve_action_target(event: &MouseEvent) -> Option<HtmlElement> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct Props {
-}
-
-#[function_component(Settings)]
-pub fn settings(props: &Props) -> Html {
+#[function_component(SettingsWidget)]
+pub fn settings() -> Html {
     let is_open = use_state(|| true);
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let prev_settings = use_state(|| settings_manager.get() );
     let settings = use_state(|| settings_manager.get() );
     let has_changes = prev_settings != settings;
+    let can_save = {
+
+        let is_valid_background = match &settings.background {
+            BackgroundSource::Default => true,
+            BackgroundSource::FileSystem { data_url, .. } => !data_url.is_empty(),
+            BackgroundSource::Url { data_url, .. } => !data_url.is_empty(),
+        };
+
+        has_changes && is_valid_background
+    };
    
     let on_action: Callback<MouseEvent> = {
         let is_open = is_open.clone();
@@ -172,7 +178,7 @@ pub fn settings(props: &Props) -> Html {
                         </div>
                         <footer class="flex gap-2 p-2">
                             <button
-                                disabled={!has_changes}
+                                disabled={!can_save}
                                 data-action="save"
                                 type="button"
                                 onclick={&on_action}
