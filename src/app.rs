@@ -1,11 +1,8 @@
 use std::rc::Rc;
 
-use chrono::{Duration, Utc};
-use log::info;
-use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, Document, HtmlElement, HtmlImageElement, Navigator, Storage, Window};
+use log::*;
+use web_sys::{Document, HtmlElement, HtmlImageElement, Navigator, Storage, Window};
 use yew::*;
-use yew_icons::{Icon, IconData};
 use yew_router::{HashRouter, Switch};
 
 use crate::{api::ApiClient, components::*, game::Repository, models::*, route::{switch, Route}, services::*, testing::set_sample_records, utils::set_document_version};
@@ -71,8 +68,8 @@ pub fn app(props: &AppProps) -> Html {
     settings_manager.init();
 
     let api_client = ApiClient::new(http_client.clone());
-    let state = use_reducer(Default::default);
-    let toast_manager = ToastManager::new(state);
+    let state: UseReducerHandle<ToastState> = use_reducer(Default::default);
+    let toast_manager = ToastManager::new(state.clone());
     let screenshot_service = ScreenshotService::new(document.clone(), body.clone(), navigator.clone());
 
     use_effect_with((version.clone(), document.clone()), set_document_version);

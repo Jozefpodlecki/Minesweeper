@@ -1,10 +1,7 @@
 use std::{cell::{Ref, RefCell}, rc::Rc};
 
-use wasm_bindgen::JsError;
-use web_sys::{window, Storage};
-
+use web_sys::Storage;
 use crate::{game::SavedGameState, models::{GameResult}};
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Repository {

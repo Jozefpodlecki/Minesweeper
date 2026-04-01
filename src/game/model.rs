@@ -1,3 +1,5 @@
+use std::fmt;
+
 use chrono::{DateTime, Duration, Utc};
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
@@ -39,6 +41,20 @@ pub struct GameCell {
     pub neighbor_mines: usize,
 }
 
+impl fmt::Display for GameCell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Cell[id={}, row={}, col={}, mine={}, state={:?}, neighbors={}]",
+            self.id,
+            self.row,
+            self.column,
+            self.is_mine,
+            self.state,
+            self.neighbor_mines
+        )
+    }
+}
 
 impl GameCell {
     #[cfg(test)]

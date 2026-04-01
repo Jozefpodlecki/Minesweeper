@@ -2,7 +2,7 @@ use js_sys::Promise;
 use log::debug;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Blob, FileReader, Headers, HtmlImageElement, Request, RequestCache, RequestInit, RequestMode, Response, Url, Window};
+use web_sys::{Blob, FileReader, HtmlImageElement, RequestCache, Url};
 
 use crate::{models::{AppError, Social}, services::HttpClient};
 

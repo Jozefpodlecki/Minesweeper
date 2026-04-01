@@ -34,6 +34,7 @@ where
         }
     }
 
+    #[allow(unused)]
     pub fn remove(&self) {
         unsafe { self.storage.remove_item(&self.key).unwrap_unchecked(); }
     }

@@ -1,4 +1,6 @@
 use log::*;
+use wasm_bindgen::JsCast;
+use web_sys::HtmlElement;
 use yew::prelude::*;
 use crate::{components::{AiPlaying, GameBoard, GameOver, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::GameDifficulty, services::SettingsManager};
 use yew_icons::{Icon, IconData};
@@ -34,7 +36,19 @@ pub fn content(props: &Props) -> Html {
         let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            let dataset = event.target_dataset_unchecked();
+            let mut element: HtmlElement = event.target_unchecked_into();
+            
+            if element.tag_name() != "button" {
+                element = unsafe {
+                    element.closest("button")
+                        .unwrap_unchecked()
+                        .map(|element| element.unchecked_into::<HtmlElement>())
+                        .unwrap_unchecked()
+                };
+            }
+
+            let dataset = element.dataset();
+
             let row = dataset.parse_unchecked("row");
             let column = dataset.parse_unchecked("column");
             let next_state = {
@@ -56,12 +70,24 @@ pub fn content(props: &Props) -> Html {
         let game_state = game_state.clone();
 
         Callback::from(move |event: MouseEvent| {
-            let dataset = event.target_dataset_unchecked();
-                let row = dataset.parse_unchecked("row");
-                let column = dataset.parse_unchecked("column");
-                let new_state = game_state.toggle_flag(row, column);
+            event.prevent_default();
+            let mut element: HtmlElement = event.target_unchecked_into();
+            log::info!("{}", element.tag_name());
+            if element.tag_name() != "button" {
+                element = unsafe {
+                    element.closest("button")
+                        .unwrap_unchecked()
+                        .map(|element| element.unchecked_into::<HtmlElement>())
+                        .unwrap_unchecked()
+                };
+            }
 
-                game_state.set(new_state);
+            let dataset = element.dataset();
+            let row = dataset.parse_unchecked("row");
+            let column = dataset.parse_unchecked("column");
+            let new_state = game_state.toggle_flag(row, column);
+
+            game_state.set(new_state);
         })
     };
 
@@ -127,7 +153,7 @@ pub fn content(props: &Props) -> Html {
                                 disabled={false}
                             />
                             <footer class="flex mt-4">
-                                <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
+                                <button data-action="reset" disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
                                     <span>{"Reset"}</span>
                                     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                                 </button>
@@ -155,7 +181,12 @@ pub fn content(props: &Props) -> Html {
                                 disabled={false}
                             />
                             <footer class="flex mt-4">
-                                <button disabled={true} type="button" onclick={&on_play} class="flex p-2 border gap-2">
+                                <button
+                                    data-action="reset"
+                                    disabled={false}
+                                    type="button"
+                                    onclick={&on_play}
+                                    class="flex p-2 border gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
                                     <span>{"Reset"}</span>
                                     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
                                 </button>

@@ -1,4 +1,4 @@
-use js_sys::{JsString, Promise};
+use js_sys::Promise;
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{File, FileReader, ProgressEvent};

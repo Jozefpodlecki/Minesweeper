@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use js_sys::Date;
-use web_sys::{window, Storage, Window};
 use yew::{Reducible, UseReducerHandle};
 
 use crate::models::{AppError, Settings};
@@ -86,6 +85,22 @@ impl ToastManager {
         };
 
         self.dispatch.dispatch(ToastAction::Add(toast));
+    }
+
+    pub fn remove_expired(&self) {
+        let now = js_sys::Date::now() as u64;
+        let duration = 3000;
+
+        let stale_toasts: Vec<u64> = self
+            .get_toasts()
+            .iter()
+            .filter(|t| now - t.id > duration)
+            .map(|t| t.id)
+            .collect();
+
+        for id in stale_toasts {
+            self.dispatch.dispatch(ToastAction::Remove(id));
+        }
     }
 
     pub fn remove(&self, id: u64) {

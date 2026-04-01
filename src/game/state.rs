@@ -124,13 +124,20 @@ impl<SC: Clone + SystemClock> GameState<SC> {
                 flags_count,
                 started_at,
             } => {
+                let mut flags_count = *flags_count;
                 let mut cells = cells.clone();
                 let idx = row * *columns + col;
 
                 if idx < cells.len() {
                     cells[idx].state = match cells[idx].state {
-                        CellState::Hidden => CellState::Flagged,
-                        CellState::Flagged => CellState::Hidden,
+                        CellState::Hidden => {
+                            flags_count += 1;
+                            CellState::Flagged
+                        },
+                        CellState::Flagged => {
+                            flags_count -= 1;
+                            CellState::Hidden
+                        },
                         CellState::Revealed => CellState::Revealed,
                     };
                 }
@@ -141,7 +148,7 @@ impl<SC: Clone + SystemClock> GameState<SC> {
                     columns: *columns,
                     mines_count: *mines_count,
                     revealed_count: *revealed_count,
-                    flags_count: *flags_count,
+                    flags_count,
                     started_at: *started_at,
                 }
             }
@@ -171,7 +178,8 @@ impl<SC: Clone + SystemClock> GameState<SC> {
             } => {
                 let first_idx = row * columns + col;
 
-                logic::setup_mines(&mut cells, mines_count, first_idx);
+                let ids = logic::get_forbidden_indices(row, col, rows, columns);
+                logic::setup_mines(&mut cells, mines_count, &ids);
                 logic::calculate_neighbor_counts(&mut cells, rows, columns);
 
                 let mut revealed_count = 0;

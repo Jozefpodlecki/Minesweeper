@@ -104,18 +104,6 @@ pub enum BackgroundSource {
     }
 }
 
-// impl PartialEq for BackgroundSource {
-//     fn eq(&self, other: &Self) -> bool {
-//         let verdict = match (self, other) {
-//             (Self::FileSystem { uploaded_on: l_uploaded_on, file_name: l_file_name, data_url: l_data_url }, Self::FileSystem { uploaded_on: r_uploaded_on, file_name: r_file_name, data_url: r_data_url }) => l_uploaded_on == r_uploaded_on && l_file_name == r_file_name && l_data_url == r_data_url,
-//             (Self::Url { uploaded_on: l_uploaded_on, url: l_url, data_url: l_data_url }, Self::Url { uploaded_on: r_uploaded_on, url: r_url, data_url: r_data_url }) => l_uploaded_on == r_uploaded_on && l_url == r_url && l_data_url == r_data_url,
-//             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-//         };
-//         log::info!("{self} eq {other} = {verdict}");
-//         verdict
-//     }
-// }
-
 impl fmt::Display for BackgroundSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

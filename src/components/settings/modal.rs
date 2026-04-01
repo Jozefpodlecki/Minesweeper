@@ -46,7 +46,7 @@ fn resolve_action_target(event: &MouseEvent) -> Option<HtmlElement> {
 
 #[function_component(SettingsWidget)]
 pub fn settings() -> Html {
-    let is_open = use_state(|| true);
+    let is_open = use_state(|| false);
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let prev_settings = use_state(|| settings_manager.get() );
     let settings = use_state(|| settings_manager.get() );
@@ -60,8 +60,6 @@ pub fn settings() -> Html {
         };
 
         let result = has_changes && is_valid_background;
-
-        // info!("{result} {has_changes} {is_valid_background}");
 
         result
     };
@@ -87,7 +85,12 @@ pub fn settings() -> Html {
 
                     is_open.set(false);
                 },
-                Action::Close => is_open.set(false),
+                Action::Close => {
+                    let prev_settings = (&*prev_settings).clone();
+                    settings.set(prev_settings);
+
+                    is_open.set(false);
+                },
             }
         })
     };
@@ -131,8 +134,6 @@ pub fn settings() -> Html {
     let stop_propagation = Callback::from(|event: MouseEvent| {
         event.stop_propagation();
     });
-
-    log::info!("MODAL: {}", settings.background);
 
     html! {
         <>

@@ -1,15 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
 
-use js_sys::Function;
 use log::*;
-use rand::seq::IndexedRandom;
 use wasm_bindgen::{prelude::{Closure, ScopedClosure}, JsCast};
 use web_sys::window;
 use yew::*;
 use yew_icons::{Icon, IconData};
-use yew_router::prelude::Link;
 
-use crate::{components::{GameBoard, Timer}, game::{CellState, GameCell, GamePhase, GameSettings, GameState}, models::{GameDifficulty, GameEngine}, route::Route, services::{AiAction, AiAigent, SystemClock}};
+use crate::{components::{GameBoard, Timer}, game::{GamePhase, GameSettings, GameState}, models::{GameDifficulty, GameEngine}, services::{AiAction, AiAigent}};
 
 #[function_component(AiPlaying)]
 pub fn ai_playing() -> Html {

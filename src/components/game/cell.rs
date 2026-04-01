@@ -21,9 +21,10 @@ pub fn game_cell(props: &Props) -> Html {
         on_toggle_flag
     } = props;
 
+    let debug_mode = true;
     let base_class = "w-10 h-10 flex items-center justify-center font-bold transition-colors";
 
-    let (state, classes, content) = match cell.state {
+    let (state, classes, content, click_handler, context_handler) = match cell.state {
         CellState::Revealed => {
             let content = if cell.is_mine {
                 html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }
@@ -33,29 +34,42 @@ pub fn game_cell(props: &Props) -> Html {
                 html! {}
             };
 
-            let state_class = if cell.is_mine {
+            let bg_class = if cell.is_mine {
                 "bg-red-500/70"
-            }
-            else {
-                "bg-gray-100/70"
+            } else {
+                match cell.neighbor_mines {
+                    1 => "bg-blue-300/70",
+                    2 => "bg-green-300/70",
+                    3 => "bg-yellow-300/70",
+                    4 => "bg-orange-300/70",
+                    5 => "bg-red-300/70",
+                    6 => "bg-purple-300/70",
+                    7 => "bg-pink-300/70",
+                    8 => "bg-gray-300/70",
+                    _ => "bg-gray-500/70",
+                }
             };
 
-            let classes = format!("{} cursor-default {} text-black", state_class, base_class);
-
-            ("revealed", classes, content)
+            let classes = format!("{} cursor-default {}", bg_class, base_class);
+            ("revealed", classes, content, Callback::noop(), Callback::noop())
         }
 
         CellState::Hidden => {
-            let classes = format!("{} bg-gray-300/70 text-black", base_class);
-            ("hidden", classes, html! {})
+            if debug_mode && cell.is_mine {
+                let classes = format!("{} bg-gray-300/70 text-red-600", base_class);
+                ("hidden", classes, html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }, on_reveal.clone(), on_toggle_flag.clone())
+            } else {
+                let classes = format!("{} bg-gray-300/70 text-black", base_class);
+                ("hidden", classes, html! {}, on_reveal.clone(), on_toggle_flag.clone())
+            }
         }
 
         CellState::Flagged => {
-            let classes = format!("{} bg-gray-300/70 text-black pointer-events-none", base_class);
+            let classes = format!("{} bg-gray-300/70 text-black", base_class);
             let content = html! {
                 <Icon data={IconData::LUCIDE_FLAG} width={"20px"} />
             };
-            ("flagged", classes, content)
+            ("flagged", classes, content, on_reveal.clone(), on_toggle_flag.clone())
         }
     };
 
@@ -67,8 +81,8 @@ pub fn game_cell(props: &Props) -> Html {
             data-column={cell.column.clone()}
             key={&*cell.key}
             class={classes}
-            onclick={&props.on_reveal}
-            oncontextmenu={&props.on_toggle_flag}
+            onclick={click_handler}
+            oncontextmenu={context_handler}
         >
             { content }
         </button>
