@@ -5,6 +5,8 @@ mod toast;
 mod screenshot;
 mod storage;
 mod http_client;
+mod file_reader;
+mod background;
 
 pub use clock::*;
 pub use settings::*;
@@ -13,3 +15,5 @@ pub use toast::*;
 pub use screenshot::*;
 pub use storage::*;
 pub use http_client::*;
+pub use file_reader::*;
+pub use background::*;

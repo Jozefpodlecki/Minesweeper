@@ -18,14 +18,14 @@ pub fn screenshot() -> Html {
                 let capture = match screenshot_service.capture_body().await {
                     Ok(value) => value,
                     Err(err) => {
-                         toast_manager.send(err);
+                        toast_manager.send(err);
                          return
                     },
                 };
 
                 let file_name = timestamped_filename();
                 screenshot_service.download(capture, &file_name);
-                
+                toast_manager.success("Downloaded screenshot");
             });
         })
     };

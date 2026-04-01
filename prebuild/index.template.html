@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="Classic grid-based puzzle experience rebuilt for speed and smooth interaction.">
+		<meta name="keywords" content="puzzle, logic game, grid game, browser game, Rust, Yew, WebAssembly, single-player, strategy, challenge">
+		<meta name="author" content="Jozef Podlecki">
+		<title>Minesweeper</title>
+		<link data-trunk rel="icon" href="icons/favicon.ico" />
+		<!-- <link data-trunk rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png"> -->
+		<link data-trunk rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+		<link data-trunk rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+		<!-- <link data-trunk rel="manifest" href="icons/site.webmanifest"> -->
+		<link data-trunk rel="css" href="styles/output.css" />
+		<link data-trunk rel="copy-dir" href="public" />
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+		<link data-trunk rel="inline" type="css" href="styles/bootstrap.css">
+    </style>
+  </head>
+  <body>
+		<script>{init.js:minify}</script>
+		<img id="default-background" alt="background" src="{../public/background_30.jpg:dataUrl}" />
+		<div id="error">
+			<div class="error-box">
+				<div class="error-icon">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<circle cx="12" cy="12" r="10" fill="rgba(255,0,0,0.1)"/>
+						<path d="M12 7v6" stroke="red" stroke-width="2" stroke-linecap="round"/>
+						<circle cx="12" cy="17" r="1.2" fill="red"/>
+					</svg>
+				</div>
+				<h1>Something went wrong</h1>
+				<p>We couldn't load the app. Try refreshing the page.</p>
+				<button type="button" onclick="location.reload()">Reload</button>
+			</div>
+		</div>
+		<div id="root">
+			<div class="loader-wrapper">
+				<div class="loader"></div>
+				<p class="loader-prompt">Loading...</p>
+			</div>
+		</div>
+	</body>
+</html>

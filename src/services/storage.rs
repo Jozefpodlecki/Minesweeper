@@ -35,6 +35,6 @@ where
     }
 
     pub fn remove(&self) {
-        let _ = self.storage.remove_item(&self.key);
+        unsafe { self.storage.remove_item(&self.key).unwrap_unchecked(); }
     }
 }

@@ -12,7 +12,8 @@ mod game_over;
 mod ai_playing;
 mod timer;
 mod error;
-mod unsaved_guard;
+mod toast;
+mod game;
 
 pub use background::*;
 pub use content::*;
@@ -28,3 +29,5 @@ pub use game_over::*;
 pub use ai_playing::*;
 pub use timer::*;
 pub use error::*;
+pub use toast::*;
+pub use game::*;

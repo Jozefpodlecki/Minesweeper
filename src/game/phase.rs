@@ -1,9 +1,6 @@
 use std::hint::unreachable_unchecked;
 use std::fmt::{self, Display, Formatter};
 use chrono::{DateTime, Duration, Utc};
-use gloo::console::info;
-use rand::{rng, seq::SliceRandom};
-use serde::{Deserialize, Serialize};
 
 use crate::{game::{GameCell}, services::{DefaultSystemClock, SystemClock}};
 

@@ -2,7 +2,7 @@ use js_sys::Promise;
 use log::debug;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{window, Blob, FileReader, Headers, Request, RequestCache, RequestInit, RequestMode, Response, Window};
+use web_sys::{window, Blob, FileReader, Headers, HtmlImageElement, Request, RequestCache, RequestInit, RequestMode, Response, Url, Window};
 
 use crate::{models::{AppError, Social}, services::HttpClient};
 
@@ -47,8 +47,42 @@ impl ApiClient {
         Ok(js_value.as_string().unwrap())
     }
 
+    pub async fn validate_image_blob(blob: &Blob) -> Result<(), AppError> {
+        let url = Url::create_object_url_with_blob(blob)?;
+
+        let img = HtmlImageElement::new()?;
+
+        let promise = Promise::new(&mut |resolve, reject| {
+            let resolve = resolve.clone();
+            let reject = reject.clone();
+
+            let onload = Closure::once_into_js(move || {
+                resolve.call0(&JsValue::NULL).unwrap();
+            });
+
+            let onerror = Closure::once_into_js(move || {
+                reject.call0(&JsValue::NULL).unwrap();
+            });
+
+            img.set_onload(Some(onload.as_ref().unchecked_ref()));
+            img.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+        });
+
+        img.set_src(&url);
+
+        let result = JsFuture::from(promise).await;
+
+        Url::revoke_object_url(&url)?;
+
+        result.map_err(AppError::invalid_file_format)?;
+
+        Ok(())
+    }
+
     pub async fn get_image(&self, url: &str) -> Result<Blob, AppError> {
         let blob = self.0.get_as_blob(url).await?;
+
+        Self::validate_image_blob(&blob).await?;
 
         Ok(blob)
     }

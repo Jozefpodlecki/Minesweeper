@@ -1,0 +1,17 @@
+[package]
+name = "minesweeper-prebuild"
+description = "A static HTML template generator with asset inlining and minification"
+authors = ["Józef Podlecki <jozef.witold.podlecki@gmail.com>"]
+license = "MIT"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94.0"
+
+[dependencies]
+flexi_logger = "0.31.8"
+tokio = { version = "1.50.0", features = ["rt", "rt-multi-thread", "macros"] }
+anyhow = "1.0.102"
+log = "0.4.29"
+base64 = "0.22.1"
+regex = "1.12.3"
+minify-js = "0.6.0"

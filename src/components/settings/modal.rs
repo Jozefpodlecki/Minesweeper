@@ -2,10 +2,10 @@ use std::hint::unreachable_unchecked;
 
 use log::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlElement, HtmlSelectElement};
+use web_sys::{HtmlElement, HtmlInputElement, HtmlSelectElement};
 use yew::*;
 
-use crate::{components::{unsaved_guard::UnsavedGuard, BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
+use crate::{components::{settings::unsaved_guard::UnsavedGuard, BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
 use yew_icons::{Icon, IconData};
 
 #[derive(Default)]
@@ -40,7 +40,7 @@ fn resolve_action_target(event: &MouseEvent) -> Option<HtmlElement> {
     unsafe {
         element.closest("button")
             .unwrap_unchecked()
-            .map(|e| e.unchecked_into::<HtmlElement>())
+            .map(|element| element.unchecked_into::<HtmlElement>())
     }
 }
 
@@ -50,7 +50,7 @@ pub fn settings() -> Html {
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let prev_settings = use_state(|| settings_manager.get() );
     let settings = use_state(|| settings_manager.get() );
-    let has_changes = prev_settings != settings;
+    let has_changes = &prev_settings != &settings;
     let can_save = {
 
         let is_valid_background = match &settings.background {
@@ -59,11 +59,16 @@ pub fn settings() -> Html {
             BackgroundSource::Url { data_url, .. } => !data_url.is_empty(),
         };
 
-        has_changes && is_valid_background
+        let result = has_changes && is_valid_background;
+
+        // info!("{result} {has_changes} {is_valid_background}");
+
+        result
     };
    
     let on_action: Callback<MouseEvent> = {
         let is_open = is_open.clone();
+        let prev_settings = prev_settings.clone();
         let settings = settings.clone();
 
         Callback::from(move |event: MouseEvent| {
@@ -77,9 +82,10 @@ pub fn settings() -> Html {
                 Action::Save => {
 
                     let settings = (&*settings).clone();
-                    settings_manager.save(settings);
+                    settings_manager.save(settings.clone());
+                    prev_settings.set(settings);
 
-                    is_open.set(false)  
+                    is_open.set(false);
                 },
                 Action::Close => is_open.set(false),
             }
@@ -90,12 +96,11 @@ pub fn settings() -> Html {
         let settings = settings.clone();
 
         Callback::from(move |event: Event| {
-            let settings = settings.clone();
-            
-            let input: HtmlSelectElement = event.target_unchecked_into();
             let mut next = (*settings).clone();
+
+            let input: HtmlSelectElement = event.target_unchecked_into();
+            
             let difficulty = input.value().parse().unwrap();
-            info!("{difficulty}");
             next.difficulty = difficulty;
 
             settings.set(next);
@@ -115,8 +120,8 @@ pub fn settings() -> Html {
     let on_persist_change = {
         let settings = settings.clone();
 
-        Callback::from(move |e: Event| {
-            let input: web_sys::HtmlInputElement = e.target_unchecked_into();
+        Callback::from(move |event: Event| {
+            let input: HtmlInputElement = event.target_unchecked_into();
             let mut next = (*settings).clone();
             next.persist_game = input.checked();
             settings.set(next);
@@ -126,6 +131,8 @@ pub fn settings() -> Html {
     let stop_propagation = Callback::from(|event: MouseEvent| {
         event.stop_propagation();
     });
+
+    log::info!("MODAL: {}", settings.background);
 
     html! {
         <>
@@ -160,7 +167,7 @@ pub fn settings() -> Html {
                         </div>
                         <div class="flex-1 flex flex-col gap-3 mb-4">
                             <DifficultySelector value={settings.difficulty} on_change={on_difficulty_change} />
-                            <BackgroundSelector value={settings.background.clone()} on_change={on_background_change} />
+                            <BackgroundSelector previous={prev_settings.background.clone()} value={settings.background.clone()} on_change={on_background_change} />
 
                             <div class="flex items-center gap-3 p-2 rounded hover:bg-white/5 transition cursor-pointer">
                                 <input
@@ -182,7 +189,7 @@ pub fn settings() -> Html {
                                 data-action="save"
                                 type="button"
                                 onclick={&on_action}
-                                class="flex items-center gap-1 mt-2 px-4 py-2 border enabled:hover:bg-white/10 disabled:opacity-50 transition"
+                                class="w-30 flex justify-center items-center gap-1 mt-2 px-4 py-2 border enabled:hover:bg-white/10 disabled:opacity-50 transition"
                             >
                                 {"Save"}
                                 <Icon data={IconData::LUCIDE_HARD_DRIVE} width={"15px"}/>
@@ -191,7 +198,7 @@ pub fn settings() -> Html {
                                 data-action="close"
                                 type="button"
                                 onclick={&on_action}
-                                class="flex items-center gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
+                                class="w-30 flex justify-center items-center gap-1 mt-2 px-4 py-2 border hover:bg-white/10 transition"
                             >
                                 {"Close"}
                                 <Icon data={IconData::LUCIDE_X} width={"15px"}/>

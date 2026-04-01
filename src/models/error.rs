@@ -10,6 +10,7 @@ pub enum AppErrorKind {
     Serde,
     Js,
     Unexpected,
+    File,  
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,6 +45,14 @@ impl AppError {
         }
     }
 
+    pub fn file(message: impl Into<String>, source: JsValue) -> Self {
+        Self {
+            kind: AppErrorKind::File,
+            message: message.into(),
+            source: Some(source),
+        }
+    }
+
     pub fn js(message: impl Into<String>, source: JsValue) -> Self {
         Self {
             kind: AppErrorKind::Js,
@@ -70,6 +79,10 @@ impl AppError {
 
     pub fn failed_to_read_body(source: JsValue) -> Self {
         Self::network("Failed to read response body", source)
+    }
+
+    pub fn invalid_file_format(source: JsValue) -> Self {
+        Self::file("Invalid file format", source)
     }
 }
 

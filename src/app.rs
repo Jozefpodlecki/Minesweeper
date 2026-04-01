@@ -49,6 +49,8 @@ pub fn app(props: &AppProps) -> Html {
         navigator
     } = props; 
 
+    let clock = DefaultSystemClock;
+    let default_background = DefaultBackground::new(default_background.clone());
     let app_state = use_state(AppState::default);
     let mut repository = Repository::new(local_storage.clone());
 
@@ -69,7 +71,8 @@ pub fn app(props: &AppProps) -> Html {
     settings_manager.init();
 
     let api_client = ApiClient::new(http_client.clone());
-    let toast_manager = ToastManager::new(window.clone());
+    let state = use_reducer(Default::default);
+    let toast_manager = ToastManager::new(state);
     let screenshot_service = ScreenshotService::new(document.clone(), body.clone(), navigator.clone());
 
     use_effect_with((version.clone(), document.clone()), set_document_version);
@@ -88,7 +91,7 @@ pub fn app(props: &AppProps) -> Html {
         
 
         Callback::from(move |event: TransitionEvent| {
-            info!("TransitionEvent")
+         
         })
     };
 
@@ -107,47 +110,50 @@ pub fn app(props: &AppProps) -> Html {
     match &*app_state {
         AppState::Loading => {
             html! {
-                <ContextProvider<HtmlImageElement> context={default_background.clone()}>
+                <ContextProvider<DefaultBackground> context={default_background.clone()}>
                     <Layout>
                         <article data-loading="" class="flex w-full h-full justify-center items-center" ontransitionend={on_transition_end}>
                             <Loader/>
                         </article>
                     </Layout>
-                </ContextProvider<HtmlImageElement>>
+                </ContextProvider<DefaultBackground>>
             }
         },
         AppState::Error(error) => {
             html! {
-                <ContextProvider<HtmlImageElement> context={default_background.clone()}>
+                <ContextProvider<DefaultBackground> context={default_background.clone()}>
                     <Layout>
                         <Error error={error.clone()} on_retry={on_retry}/>
                     </Layout>
-                </ContextProvider<HtmlImageElement>>
+                </ContextProvider<DefaultBackground>>
             }
         },
         AppState::Loaded(social) => {
             html! {
-                <ContextProvider<ApiClient> context={api_client}>
-                    <ContextProvider<HtmlImageElement> context={default_background.clone()}>
-                        <ContextProvider<ScreenshotService> context={screenshot_service}>
-                            <ContextProvider<ToastManager> context={toast_manager}>
-                                <ContextProvider<SettingsManager> context={settings_manager}>
-                                    <ContextProvider<Repository> context={repository}>
-                                        <ContextProvider<Social> context={social.clone()}>
-                                            <Layout>
-                                                <SettingsWidget/>
-                                                <Screenshot/>
-                                                <HashRouter>
-                                                    <Switch<Route> render={switch} />
-                                                </HashRouter>
-                                            </Layout>
-                                        </ContextProvider<Social>>
-                                    </ContextProvider<Repository>>
-                                </ContextProvider<SettingsManager>>
-                            </ContextProvider<ToastManager>>
-                        </ContextProvider<ScreenshotService>>
-                    </ContextProvider<HtmlImageElement>>
-                </ContextProvider<ApiClient>>
+                <ContextProvider<DefaultSystemClock> context={clock}>
+                    <ContextProvider<ApiClient> context={api_client}>
+                        <ContextProvider<DefaultBackground> context={default_background.clone()}>
+                            <ContextProvider<ScreenshotService> context={screenshot_service}>
+                                <ContextProvider<ToastManager> context={toast_manager}>
+                                    <ContextProvider<SettingsManager> context={settings_manager}>
+                                        <ContextProvider<Repository> context={repository}>
+                                            <ContextProvider<Social> context={social.clone()}>
+                                                <Layout>
+                                                    <SettingsWidget/>
+                                                    <ToastWidget/>
+                                                    <Screenshot/>
+                                                    <HashRouter>
+                                                        <Switch<Route> render={switch} />
+                                                    </HashRouter>
+                                                </Layout>
+                                            </ContextProvider<Social>>
+                                        </ContextProvider<Repository>>
+                                    </ContextProvider<SettingsManager>>
+                                </ContextProvider<ToastManager>>
+                            </ContextProvider<ScreenshotService>>
+                        </ContextProvider<DefaultBackground>>
+                    </ContextProvider<ApiClient>>
+                </ContextProvider<DefaultSystemClock>>
             }
         },
     }

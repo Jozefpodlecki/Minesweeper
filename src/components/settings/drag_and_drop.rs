@@ -23,12 +23,28 @@ fn validate(file: &File) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn handle_file(
+    file: File,
+    on_change: &Callback<Option<File>>,
+    error: &UseStateHandle<Option<String>>,
+) {
+    match validate(&file) {
+        Ok(_) => {
+            error.set(None);
+            on_change.emit(Some(file));
+        }
+        Err(msg) => {
+            error.set(Some(msg.to_string()));
+        }
+    }
+}
+
 #[function_component(DragAndDrop)]
 pub fn drag_and_drop(props: &Props) -> Html {
     let input_ref = use_node_ref();
     let hover = use_state(|| false);
     let error = use_state(|| Option::<String>::None);
-    // info!("props.data_url={:?}", props.data_url);
+
     let on_drag_over: Callback<DragEvent> = {
         let hover = hover.clone();
         Callback::from(move |event: DragEvent| {
@@ -92,22 +108,6 @@ pub fn drag_and_drop(props: &Props) -> Html {
         })
     };
 
-    fn handle_file(
-        file: File,
-        on_change: &Callback<Option<File>>,
-        error: &UseStateHandle<Option<String>>,
-    ) {
-        match validate(&file) {
-            Ok(_) => {
-                error.set(None);
-                on_change.emit(Some(file));
-            }
-            Err(msg) => {
-                error.set(Some(msg.to_string()));
-            }
-        }
-    }
-
     let base_drop_classes =
         "relative flex justify-center items-center h-48 w-full border-2 border-dashed p-4 text-center cursor-pointer overflow-hidden";
     let drop_classes = if *hover {
@@ -118,7 +118,7 @@ pub fn drag_and_drop(props: &Props) -> Html {
 
     let remove_button = if props.data_url.is_some() {
         html! {
-            <div class="absolute top-2 right-2 z-30">
+            <div data-action="remove" class="absolute top-2 right-2 z-30">
                 <button
                     type="button"
                     onclick={on_clear}
@@ -135,6 +135,7 @@ pub fn drag_and_drop(props: &Props) -> Html {
     let image = if let Some(data_url) = &props.data_url {
         html! {
             <img
+                data-thumbnail=""
                 src={data_url.to_string()}
                 class="absolute inset-0 w-full h-full object-cover opacity-60 pointer-events-none"
             />
@@ -154,9 +155,10 @@ pub fn drag_and_drop(props: &Props) -> Html {
                 z-20
                 pointer-events-none
             ">
-                <span class="text-sm">
-                    {"Drag & drop a new image or click to replace"}
-                </span>
+                <div class="flex flex-col items-center justify-center gap-2">
+                    <span class="text-sm">{"Drag & drop a new image or click to replace"}</span>
+                    <Icon data={IconData::LUCIDE_UPLOAD} width={"30px"} />
+                </div>
             </div>
         }
     } else {
@@ -165,9 +167,10 @@ pub fn drag_and_drop(props: &Props) -> Html {
 
     let content = if props.data_url.is_none() && error.is_none() {
         html! {
-            <span class="z-10">
-                {"Drag & drop an image here, or click to upload"}
-            </span>
+            <div data-prompt="" class="flex flex-col items-center justify-center gap-2 z-10">
+                <span>{"Drag & drop an image here, or click to upload"}</span>
+                <Icon data={IconData::LUCIDE_UPLOAD} width={"30px"} />
+            </div>
         }
     } else {
         html! {}
@@ -191,6 +194,7 @@ pub fn drag_and_drop(props: &Props) -> Html {
 
     html! {
         <div
+            data-drag-and-drop=""
             class={drop_classes}
             ondragover={on_drag_over}
             ondragleave={on_drag_leave}
