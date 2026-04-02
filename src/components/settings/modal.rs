@@ -139,6 +139,7 @@ pub fn settings() -> Html {
         <>
             <section class="absolute top-0 left-0 text-white">
                 <button
+                    data-settings=""
                     data-action="open"
                     type="button"
                     onclick={&on_action}

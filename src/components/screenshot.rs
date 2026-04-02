@@ -34,6 +34,7 @@ pub fn screenshot() -> Html {
         <>
             <section class="absolute top-0 right-0 text-white">
                 <button
+                    data-screenshot=""
                     type="button"
                     onclick={on_screenshot}
                     class="p-2 hover:bg-white/10 rounded transition"

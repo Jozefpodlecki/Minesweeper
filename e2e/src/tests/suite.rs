@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use log::*;
 use thirtyfour::WebDriver;
 
-use crate::{app::WebApp, driver::WebAppDriver};
+use crate::{app::WebApp, driver::WebAppDriver, tests::{error::*, page::*}};
 
 pub struct TestSuite;
 
@@ -23,12 +23,11 @@ impl TestContext {
     }
 
     pub async fn reset(&self) -> Result<()> {
-        self.driver.delete_all_cookies().await?;
+        // self.driver.delete_all_cookies().await?;
 
-        self.driver.execute(r#"
-            localStorage.clear();
-            sessionStorage.clear();
-        "#, vec![]).await?;
+        // self.driver.execute(r#"
+            
+        // "#, vec![]).await?;
 
         self.driver.goto(self.app.base_url()).await?;
 
@@ -43,42 +42,11 @@ pub struct TestCase {
     pub run: Box<dyn Fn(TestContext) -> TestFuture + Send + Sync>,
 }
 
-pub fn should_have_title(expected: String) -> TestCase {
-    TestCase {
-        name: "should_have_title",
-        run: Box::new(move |ctx| {
-            let expected = expected.clone();
-            Box::pin(async move {
-
-                let title = ctx.driver.title().await?;
-                if !title.contains(&expected) {
-                    return Err(anyhow!("Title mismatch"));
-                }
-
-                Ok(())
-            })
-        }),
-    }
-}
-
-pub fn should_() -> TestCase {
-    TestCase {
-        name: "should_have_title",
-        run: Box::new(move |ctx| {
-            // let expected = expected.clone();
-            Box::pin(async move {
-
-
-                Ok(())
-            })
-        }),
-    }
-}
-
 impl TestSuite {
     pub async fn run(context: TestContext) -> Result<()> {
         let tests = vec![
             should_have_title("Minesweeper".to_string()),
+            should_show_error_popup(),
             should_()
         ];
 

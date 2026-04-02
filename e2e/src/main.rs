@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use flexi_logger::{FileSpec, Logger};
+use flexi_logger::{Duplicate, FileSpec, Logger};
 use log::*;
 use anyhow::*;
 
@@ -17,6 +17,7 @@ mod tests;
 async fn main() -> Result<()> {
      Logger::try_with_str("debug")?
           .log_to_file(FileSpec::default())
+          .duplicate_to_stdout(Duplicate::All)
           .start()?;
 
      let port = 1420;
