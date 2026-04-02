@@ -1,22 +1,27 @@
  
 # Prerequisites
 
-your mileage may wary as game was developed in windows 11
+This project was developed on Windows 11, so behavior may vary slightly on other operating systems.
 
-- Rust 1.94
-- Trunk v0.21.14
+## Required tools
+- Rust (version 1.94 or newer)
+- Trunk (v0.21.14)
+
+Install Trunk with:
 
 ```sh
 cargo install --locked trunk
 ```
 
-- Tailwind
+Install dependencies with:
 
 ```sh
 npm ci
 ```
 
-Once done 
+## Running the project
+
+Start the development server with:
 
 ```sh
 trunk serve
