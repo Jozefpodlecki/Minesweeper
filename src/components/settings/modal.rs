@@ -84,14 +84,14 @@ pub fn settings() -> Html {
                     let settings = (&*settings).clone();
                     settings_manager.save(settings.clone());
                     prev_settings.set(settings);
-
+                    toast_manager.success("Saved settings");
                     is_open.set(false);
                 },
                 Action::Close => {
                     let prev_settings = (&*prev_settings).clone();
                     settings.set(prev_settings);
-                    toast_manager.success("Saved settings");
-                    // is_open.set(false);
+                    
+                    is_open.set(false);
                 },
             }
         })

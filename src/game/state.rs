@@ -49,7 +49,7 @@ impl<SC: Clone + SystemClock> GameManager<SC> {
         let rows = 15;
         let cols = 15;
         let mines_count = self.calculate_mines_count(rows, cols, difficulty);
-        info!("mines_count={mines_count}");
+
         let settings = GameSettings {
             rows,
             columns: cols,
@@ -161,7 +161,7 @@ impl<SC: Clone + SystemClock> GameState<SC> {
                 match new_grid.toggle_flag(row, col) {
                     CellState::Flagged => new_flags += 1,
                     CellState::Hidden => new_flags -= 1,
-                    _ => {}
+                    CellState::Revealed => panic!("Flagging revealed cell?")
                 }
 
                 GamePhase::Playing {
@@ -206,9 +206,18 @@ impl<SC: Clone + SystemClock> GameState<SC> {
                 //     return Self { clock: self.clock.clone(), phase: GamePhase::Playing { grid, mines_count, revealed_count, flags_count, started_at } };
                 // }
 
+                let cell = grid.at(row, col);
+                if matches!(cell.state, CellState::Revealed) {
+                    panic!(
+                        "Attempted to reveal an already revealed cell: row={}, col={}, state={:?}",
+                        row, col, cell.state
+                    );
+                }
+
                 if grid.is_mine(idx) {
                     grid.reveal_all();
                     let last_cell = Some(grid.at(row, col).clone());
+
                     return Self {
                         clock: self.clock.clone(),
                         settings: self.settings.clone(),
@@ -225,7 +234,7 @@ impl<SC: Clone + SystemClock> GameState<SC> {
                     };
                 }
 
-                let revealed_count = grid.reveal_cell(row, col);
+                revealed_count += grid.reveal_cell(row, col);
                 let total_safe = grid.rows * grid.columns - mines_count;
 
                 if revealed_count == total_safe {

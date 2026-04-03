@@ -4,7 +4,7 @@ use log::*;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use yew::prelude::*;
-use crate::{components::{AiPlaying, GameBoard, GameOver, Records}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::GameDifficulty, services::{AiAction, AiAigent, SettingsManager}};
+use crate::{components::{AiPlaying, GameBoard, GameOver, Records, Timer}, extensions::{DomStringMapExtensions, MouseEventExtensions}, game::*, models::GameDifficulty, services::{AiAction, AiAigent, SettingsManager}};
 use yew_icons::{Icon, IconData};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -67,7 +67,7 @@ pub fn content(props: &Props) -> Html {
             let action = ai_agent.next(state);
 
             match action {
-                AiAction::None => return,
+                AiAction::None | AiAction::Play => return,
                 AiAction::Reveal { column, row, .. } => {
                     let next_state = (&*game_state).clone();
                     let next_state = next_state.reveal(row, column);
@@ -88,7 +88,7 @@ pub fn content(props: &Props) -> Html {
 
     let on_play: Callback<MouseEvent> = {
         let game_state = game_state.clone();
-        let settings_manager = settings_manager.clone();
+        // let settings_manager = settings_manager.clone();
         let repository = repository.clone();
 
         Callback::from(move |_| {
@@ -120,13 +120,6 @@ pub fn content(props: &Props) -> Html {
             let next_state = {
                 (*game_state).clone().reveal(row, column)
             };
-
-            match &next_state.phase() {
-                GamePhase::GameOver { .. } => {
-                    info!("over1");
-                },
-                _ => {}
-            }
 
             game_state.set(next_state);
         })
@@ -254,10 +247,8 @@ pub fn content(props: &Props) -> Html {
         GamePhase::Initializing { grid, .. } => {
             html! {
                 <main class="flex flex-col text-white h-200">
-                    <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
-                        <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
-                        <span>{format!("Mines: {}", 0)}</span>
-                        // <span>{format!("Time: {}s", seconds)}</span>
+                    <header data-top-panel="" class="flex justify-center items-center gap-1 mb-2 px-2">
+                        <span class="font-[roboto]">{"Click any cell to begin - the first move is always safe."}</span>
                     </header>
                     <GameBoard
                         engine={settings.engine}
@@ -268,28 +259,38 @@ pub fn content(props: &Props) -> Html {
                         disabled={false}
                     />
                     <footer class="flex mt-4">
-                        <button data-action="reset"
-                            disabled={true}
-                            type="button"
-                            onclick={&on_play}
-                            class="flex p-2 border gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100">
-                            <span>{"Reset"}</span>
-                            <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
-                        </button>
+                        // <button data-action="reset"
+                        //     disabled={true}
+                        //     type="button"
+                        //     onclick={&on_play}
+                        //     class="flex p-2 border gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100">
+                        //     <span>{"Reset"}</span>
+                        //     <Icon data={IconData::LUCIDE_TIMER_RESET} width={"20px"}/>
+                        // </button>
                     </footer>
                 </main>
             }
         },
-        GamePhase::Playing { grid, flags_count, mines_count, .. } => {
+        GamePhase::Playing { grid, flags_count, mines_count, revealed_count, started_at, .. } => {
 
             let mines_left = mines_count - flags_count;
 
             html! {
                 <main class="flex flex-col text-white h-200">
-                    <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
-                        <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
-                        <span>{format!("Mines: {}", mines_left)}</span>
-                        // <span>{format!("Time: {}s", seconds)}</span>
+                    <header data-top-panel="" class="flex justify-center items-center gap-10 mb-2 px-2">
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
+                            <span>{format!("Mines: {}", mines_left)}</span>
+                        </div>
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_SQUARE} width={"20px"}/>
+                            <span>{format!("Revealed: {}", revealed_count)}</span>
+                        </div>
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_FLAG} width={"20px"}/>
+                            <span>{format!("Flagged: {}", flags_count)}</span>
+                        </div>
+                        <Timer is_running={true} started_at={*started_at} />
                     </header>
                     <GameBoard
                         engine={settings.engine}
@@ -321,16 +322,26 @@ pub fn content(props: &Props) -> Html {
                 </main>
             }
         },
-        GamePhase::GameOver { has_won, grid, mines_count, flags_count, .. } => {
+        GamePhase::GameOver { has_won, grid, mines_count, flags_count, revealed_count, started_at, .. } => {
 
             let mines_left = mines_count - flags_count;
 
             html! {
                 <main class="flex flex-col text-white h-200">
-                    <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
-                        <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
-                        <span>{format!("Mines: {}", mines_left)}</span>
-                        // <span>{format!("Time: {}s", seconds)}</span>
+                    <header data-top-panel="" class="flex justify-center items-center gap-10 mb-2 px-2">
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_BOMB} width={"20px"}/>
+                            <span>{format!("Mines: {}", mines_left)}</span>
+                        </div>
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_SQUARE} width={"20px"}/>
+                            <span>{format!("Revealed: {}", revealed_count)}</span>
+                        </div>
+                        <div data-mines="" class="flex items-center gap-2">
+                            <Icon data={IconData::LUCIDE_FLAG} width={"20px"}/>
+                            <span>{format!("Flagged: {}", flags_count)}</span>
+                        </div>
+                        <Timer is_running={false} started_at={*started_at} />
                     </header>
                     <GameBoard
                         engine={settings.engine}

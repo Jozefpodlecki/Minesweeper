@@ -45,6 +45,7 @@ impl Display for AiReason {
 
 pub enum AiAction {
     None,
+    Play,
     Reveal {
         column: usize,
         row: usize,
@@ -65,6 +66,7 @@ impl Display for AiAction {
             AiAction::Reveal { reason, column, row } => write!(f, "AiAction::Reveal Reason={}, Row={}, Column={}", reason, column, row),
             AiAction::Flag { reason, column, row } => write!(f, "AiAction::Flag Reason={}, Row={} Column={}", reason, column, row),
             AiAction::Restart => write!(f, "AiAction::Restart"),
+            AiAction::Play => write!(f, "AiAction::Play"),
         }
     }
 }
@@ -80,11 +82,9 @@ impl AiAigent {
         debug!("{}", state.phase());
 
         match state.phase() {
-            GamePhase::GameOver { .. } => return AiAction::Restart,
+            GamePhase::GameOver { .. } => AiAction::Restart,
 
-            GamePhase::Initializing { grid, .. } => {
-                return self.random_reveal(grid.rows, grid.columns);
-            }
+            GamePhase::Initializing { grid, .. } => self.random_reveal(grid.rows, grid.columns),
 
             GamePhase::Playing { grid, .. } => {
                 if let Some(action) = self.try_deterministic(grid, state) {
@@ -98,7 +98,7 @@ impl AiAigent {
                 return self.random_from_hidden(grid.cells());
             }
 
-            _ => AiAction::None,
+            GamePhase::Idle => AiAction::Play,
         }
     }
 

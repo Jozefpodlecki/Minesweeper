@@ -1,8 +1,36 @@
+use wasm_bindgen::JsCast;
+use web_sys::{SvgElement, HtmlElement};
 use yew::prelude::*;
-use yew_router::prelude::Link;
 
-use crate::{game::{CellState, GameCell}, models::Social, route::Route};
+use crate::{extensions::ExtensionsNodeRef, game::{CellState, GameCell}};
 use yew_icons::{Icon, IconData};
+
+#[function_component(FilledBomb)]
+pub fn filled_bomb() -> Html {
+    let node_ref = use_node_ref();
+
+    {
+        let node_ref = node_ref.clone();
+
+        use_effect(move || {
+            unsafe {
+                let parent = node_ref.unchecked_cast::<HtmlElement>();
+                let child = parent.first_element_child().unwrap_unchecked();
+                let svg = child.unchecked_into::<SvgElement>();
+                svg.set_attribute("fill", "#cc0000").unwrap_unchecked();
+                svg.set_attribute("stroke", "#990000").unwrap_unchecked();
+            }
+
+            || {}
+        });
+    }
+
+    html! {
+        <div ref={node_ref}>
+            <Icon data={IconData::LUCIDE_BOMB} width={"20px"} />
+        </div>
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {
@@ -21,7 +49,7 @@ pub fn game_cell(props: &Props) -> Html {
         on_toggle_flag
     } = props;
 
-    let debug_mode = true;
+    let debug_mode = cfg!(debug_assertions);
     let base_class = "w-10 h-10 flex items-center justify-center font-bold transition-colors";
 
     let prevent_default = Callback::from(move |event: MouseEvent| {
@@ -31,7 +59,7 @@ pub fn game_cell(props: &Props) -> Html {
     let (state, classes, content, click_handler, context_handler) = match cell.state {
         CellState::Revealed => {
             let content = if cell.is_mine {
-                html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }
+                html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} class="text-red-500" style="fill: red" /> }
             } else if cell.neighbor_mines > 0 {
                 html! { cell.neighbor_mines.to_string() }
             } else {
@@ -63,7 +91,7 @@ pub fn game_cell(props: &Props) -> Html {
 
             if debug_mode && cell.is_mine {
                 let classes = format!("{} bg-gray-300/70 text-red-600 {}", base_class, hover_classes);
-                ("hidden", classes, html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }, on_reveal.clone(), on_toggle_flag.clone())
+                ("hidden", classes, html! { <FilledBomb/> }, on_reveal.clone(), on_toggle_flag.clone())
             } else {
                 let classes = format!("{} bg-gray-300/70 text-black {}", base_class, hover_classes);
                 ("hidden", classes, html! {}, on_reveal.clone(), on_toggle_flag.clone())
