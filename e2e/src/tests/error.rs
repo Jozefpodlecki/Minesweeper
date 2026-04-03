@@ -14,10 +14,9 @@ pub fn should_show_error_popup() -> TestCase {
 
                 let error_url = format!("{}#/error", context.app.base_url());
                 context.driver.goto(error_url).await?;
-                context.driver.set_implicit_wait_timeout(Duration::from_secs(5)).await?;
 
                 let element = context.driver
-                    .query(By::Css(""))
+                    .query(By::Id("error"))
                     .wait(Duration::from_secs(5), Duration::from_millis(1000))
                     .first()
                     .await?;

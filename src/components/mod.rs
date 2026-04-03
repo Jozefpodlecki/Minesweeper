@@ -8,6 +8,7 @@ mod layout;
 mod timer;
 mod error;
 mod toast;
+mod misc;
 mod game;
 
 pub use background::*;
@@ -20,4 +21,5 @@ pub use layout::*;
 pub use timer::*;
 pub use error::*;
 pub use toast::*;
+pub use misc::*;
 pub use game::*;

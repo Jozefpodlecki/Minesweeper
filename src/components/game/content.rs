@@ -15,11 +15,36 @@ pub fn content(props: &Props) -> Html {
     
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let repository = unsafe { use_context::<Repository>().unwrap_unchecked() };
-    // let game_state = use_state(|| GameState::default() );
-    let game_state = use_state(|| GameState::default().play(GameSettings::from_difficulty(15, 15, GameDifficulty::Hard)) );
-    // let game_state = use_state(|| GameState::game_over(true) );
-    // let game_state = use_state(|| GameState::game_over(false) );
+    let game_manager = unsafe { use_context::<DefaultGameManager>().unwrap_unchecked() };
+    let game_state = use_state(|| game_manager.create() );
     let settings = use_state(|| settings_manager.get() );
+
+    let on_action: Callback<MouseEvent> = {
+        let game_state = game_state.clone();
+        let settings_manager = settings_manager.clone();
+
+        Callback::from(move |event: MouseEvent| {
+            
+            let mut element: HtmlElement = event.target_unchecked_into();
+            
+            if element.tag_name() != "button" {
+                element = unsafe {
+                    element.closest("button")
+                        .unwrap_unchecked()
+                        .map(|element| element.unchecked_into::<HtmlElement>())
+                        .unwrap_unchecked()
+                };
+            }
+
+            let dataset = element.dataset();
+            let action: String = dataset.parse_unchecked("action");
+
+            match action.as_str() {
+               "test" => {},
+               _ => {}
+            }
+        })
+    };
 
     let on_play: Callback<MouseEvent> = {
         let game_state = game_state.clone();
@@ -27,7 +52,7 @@ pub fn content(props: &Props) -> Html {
 
         Callback::from(move |_| {
             let settings = settings_manager.get();
-            let new_state = game_state.play(GameSettings::from_difficulty(15, 15, settings.difficulty));
+            let new_state = game_state.play();
             game_state.set(new_state);
         })
     };
@@ -72,7 +97,7 @@ pub fn content(props: &Props) -> Html {
         Callback::from(move |event: MouseEvent| {
             event.prevent_default();
             let mut element: HtmlElement = event.target_unchecked_into();
-            log::info!("{}", element.tag_name());
+
             if element.tag_name() != "button" {
                 element = unsafe {
                     element.closest("button")
@@ -136,7 +161,7 @@ pub fn content(props: &Props) -> Html {
                         </main>
                     }
                 },
-                GamePhase::Initializing { cells, columns, .. } => {
+                GamePhase::Initializing { grid, .. } => {
                     html! {
                         <main class="flex flex-col text-white h-200">
                             <header data-top-panel="" class="flex items-center gap-1 mb-2 px-2">
@@ -146,8 +171,8 @@ pub fn content(props: &Props) -> Html {
                             </header>
                             <GameBoard
                                 engine={settings.engine}
-                                cells={cells.clone()}
-                                columns={*columns}
+                                cells={grid.cells().to_vec().into_boxed_slice()}
+                                columns={grid.columns}
                                 on_reveal={&on_reveal}
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
@@ -161,7 +186,7 @@ pub fn content(props: &Props) -> Html {
                         </main>
                     }
                 },
-                GamePhase::Playing { cells, columns, flags_count, mines_count, .. } => {
+                GamePhase::Playing { grid, flags_count, mines_count, .. } => {
  
                     let mines_left = mines_count - flags_count;
 
@@ -174,8 +199,8 @@ pub fn content(props: &Props) -> Html {
                             </header>
                             <GameBoard
                                 engine={settings.engine}
-                                cells={cells.clone()}
-                                columns={*columns}
+                                cells={grid.cells().to_vec().into_boxed_slice()}
+                                columns={grid.columns}
                                 on_reveal={&on_reveal}
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={false}
@@ -194,7 +219,7 @@ pub fn content(props: &Props) -> Html {
                         </main>
                     }
                 },
-                GamePhase::GameOver { has_won, cells, columns, mines_count, flags_count, .. } => {
+                GamePhase::GameOver { has_won, grid, mines_count, flags_count, .. } => {
 
                     let mines_left = mines_count - flags_count;
 
@@ -207,8 +232,8 @@ pub fn content(props: &Props) -> Html {
                             </header>
                             <GameBoard
                                 engine={settings.engine}
-                                cells={cells.clone()}
-                                columns={*columns}
+                                cells={grid.cells().to_vec().into_boxed_slice()}
+                                columns={grid.columns}
                                 on_reveal={&on_reveal}
                                 on_toggle_flag={&on_toggle_flag}
                                 disabled={true}

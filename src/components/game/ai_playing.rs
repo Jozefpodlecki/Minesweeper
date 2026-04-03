@@ -6,14 +6,13 @@ use web_sys::window;
 use yew::*;
 use yew_icons::{Icon, IconData};
 
-use crate::{components::{GameBoard, Timer}, game::{GamePhase, GameSettings, GameState}, models::{GameDifficulty, GameEngine}, services::{AiAction, AiAigent}};
+use crate::{components::{GameBoard, Timer}, game::*, models::*, services::{AiAction, AiAigent}};
 
 #[function_component(AiPlaying)]
 pub fn ai_playing() -> Html {
-    let game_state = use_state(|| {
-        let state = GameState::default().play(GameSettings::from_difficulty(15, 15, GameDifficulty::Hard));
-        state
-    } );
+    let game_manager = unsafe { use_context::<DefaultGameManager>().unwrap_unchecked() };
+
+    let game_state = use_state(|| game_manager.create() );
     let runner = use_state(|| Rc::new(AiAigent::new()));
 
     {
@@ -72,7 +71,7 @@ pub fn ai_playing() -> Html {
 
     html! {
         {match game_state.phase() {
-            GamePhase::Initializing { cells, columns, mines_count, .. } => {
+            GamePhase::Initializing { grid, mines_count, .. } => {
 
                 let mines_left = mines_count - 0;
 
@@ -84,8 +83,8 @@ pub fn ai_playing() -> Html {
                         </div>
                         <GameBoard
                             engine={GameEngine::Html}
-                            cells={cells.clone()}
-                            columns={*columns}
+                            cells={grid.cells().to_vec().into_boxed_slice()}
+                            columns={grid.columns}
                             on_reveal={Callback::noop()}
                             on_toggle_flag={Callback::noop()}
                             disabled={true}
@@ -93,7 +92,7 @@ pub fn ai_playing() -> Html {
                     </>
                 }
             },
-            GamePhase::Playing { cells, columns, flags_count, mines_count, started_at, .. } => {
+            GamePhase::Playing { grid, flags_count, mines_count, started_at, .. } => {
 
                 let mines_left = mines_count - flags_count;
 
@@ -106,8 +105,8 @@ pub fn ai_playing() -> Html {
                         </header>
                         <GameBoard
                             engine={GameEngine::Html}
-                            cells={cells.clone()}
-                            columns={*columns}
+                            cells={grid.cells().to_vec().into_boxed_slice()}
+                            columns={grid.columns}
                             on_reveal={Callback::noop()}
                             on_toggle_flag={Callback::noop()}
                             disabled={true}
@@ -115,7 +114,7 @@ pub fn ai_playing() -> Html {
                     </>
                 }
             },
-            GamePhase::GameOver { cells, columns, mines_count, flags_count, .. } => {
+            GamePhase::GameOver { grid, mines_count, flags_count, .. } => {
 
                 let mines_left = mines_count - flags_count;
 
@@ -128,8 +127,8 @@ pub fn ai_playing() -> Html {
                         </header>
                         <GameBoard
                             engine={GameEngine::Html}
-                            cells={cells.clone()}
-                            columns={*columns}
+                            cells={grid.cells().to_vec().into_boxed_slice()}
+                            columns={grid.columns}
                             on_reveal={Callback::noop()}
                             on_toggle_flag={Callback::noop()}
                             disabled={true}

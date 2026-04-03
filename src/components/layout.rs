@@ -1,8 +1,6 @@
 use yew::*;
-use yew_router::prelude::Link;
 
 use crate::{components::Background, route::Route};
-use yew_icons::{Icon, IconData};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {

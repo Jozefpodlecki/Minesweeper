@@ -5,7 +5,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, HtmlInputElement, HtmlSelectElement};
 use yew::*;
 
-use crate::{components::{settings::unsaved_guard::UnsavedGuard, BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::SettingsManager};
+use crate::{components::{settings::unsaved_guard::UnsavedGuard, BackgroundSelector, DifficultySelector}, extensions::*, models::BackgroundSource, services::{SettingsManager, ToastManager}};
 use yew_icons::{Icon, IconData};
 
 #[derive(Default)]
@@ -47,6 +47,7 @@ fn resolve_action_target(event: &MouseEvent) -> Option<HtmlElement> {
 #[function_component(SettingsWidget)]
 pub fn settings() -> Html {
     let is_open = use_state(|| false);
+    let toast_manager = unsafe { use_context::<ToastManager>().unwrap_unchecked() };
     let settings_manager = unsafe { use_context::<SettingsManager>().unwrap_unchecked() };
     let prev_settings = use_state(|| settings_manager.get() );
     let settings = use_state(|| settings_manager.get() );
@@ -68,6 +69,7 @@ pub fn settings() -> Html {
         let is_open = is_open.clone();
         let prev_settings = prev_settings.clone();
         let settings = settings.clone();
+        let toast_manager = toast_manager.clone();
 
         Callback::from(move |event: MouseEvent| {
 
@@ -88,8 +90,8 @@ pub fn settings() -> Html {
                 Action::Close => {
                     let prev_settings = (&*prev_settings).clone();
                     settings.set(prev_settings);
-
-                    is_open.set(false);
+                    toast_manager.success("Saved settings");
+                    // is_open.set(false);
                 },
             }
         })
@@ -151,7 +153,7 @@ pub fn settings() -> Html {
 
             if *is_open {
                 <div
-                    data-modal=""
+                    data-overlay=""
                     data-action="close"
                     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
                     onclick={&on_action}
@@ -160,6 +162,7 @@ pub fn settings() -> Html {
                         <UnsavedGuard/>
                     }
                     <div
+                        data-modal=""
                         class="flex flex-col bg-black/70 text-white p-6 rounded shadow-lg min-w-[400px] h-150"
                         onclick={stop_propagation}
                     >

@@ -41,6 +41,14 @@ pub struct GameCell {
     pub neighbor_mines: usize,
 }
 
+impl GameCell {
+    pub fn reset(&mut self) {
+        self.state = CellState::Hidden;
+        self.is_mine = false;
+        self.neighbor_mines = 0;
+    }
+}
+
 impl fmt::Display for GameCell {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -97,24 +105,9 @@ pub struct SavedGameState {
     pub started_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct GameSettings {
     pub rows: usize,
     pub columns: usize,
     pub mines_count: usize
-}
-
-impl GameSettings {
-    pub fn from_difficulty(rows: usize, columns: usize, difficulty: GameDifficulty) -> Self {
-        let mut rng = rand::rng();
-
-        let density = match difficulty {
-            GameDifficulty::Easy => rng.random_range(0.10..0.14),
-            GameDifficulty::Medium => rng.random_range(0.15..0.19),
-            GameDifficulty::Hard => rng.random_range(0.24..0.29),
-        };
-
-        let mines_count = (rows * columns) as f64 * density;
-
-        Self { rows, columns, mines_count: mines_count as usize }
-    }
 }

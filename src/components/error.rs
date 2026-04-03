@@ -1,8 +1,7 @@
 use yew::*;
 use yew_icons::{Icon, IconData};
-use yew_router::prelude::Link;
 
-use crate::{components::Background, models::AppError, route::Route};
+use crate::models::AppError;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {

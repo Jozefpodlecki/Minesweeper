@@ -1,8 +1,7 @@
-use std::{error::Error, fmt::{self, Debug, Display, Formatter}, hint::unreachable_unchecked, str::FromStr};
+use std::{fmt::{self, Debug}, hint::unreachable_unchecked, str::FromStr};
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::JsValue;
 use crate::models::AppError;
 
 #[derive(Clone, Default, Debug, PartialEq)]

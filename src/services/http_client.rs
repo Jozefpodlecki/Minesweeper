@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use std::rc::Rc;
 
 use js_sys::Uint8Array;
@@ -34,6 +33,7 @@ impl HttpResponse {
         serde_wasm_bindgen::from_value(js_value).map_err(AppError::from)
     }
     
+    #[allow(unused)]
     pub async fn into_bytes(self) -> Result<Vec<u8>, AppError> {
         let array_buffer = self.0.array_buffer()
             .map_err(AppError::failed_to_read_body)?;
@@ -54,8 +54,8 @@ impl HttpResponse {
 pub struct HttpClient {
     window: Window,
     headers: Headers,
-    version: Rc<str>,
-    app_name: Rc<str>
+    version: Box<str>,
+    app_name: Box<str>
 }
 
 impl HttpClient {
@@ -65,8 +65,8 @@ impl HttpClient {
         Self {
             window,
             headers,
-            version,
-            app_name
+            version: version.to_string().into_boxed_str(),
+            app_name: app_name.to_string().into_boxed_str(),
         }
     }
 
@@ -122,6 +122,7 @@ impl HttpClient {
         self.get_with_cors(url).await?.into_json().await
     }
     
+    #[allow(unused)]
     pub async fn get_as_bytes(&self, url: &str) -> Result<Vec<u8>, AppError> {
         self.get(url).await?.into_bytes().await
     }

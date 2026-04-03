@@ -2,12 +2,12 @@ use std::{cell::RefCell, rc::Rc};
 
 use gloo::timers::callback::Timeout;
 use js_sys::Date;
-use wasm_bindgen::{prelude::Closure, JsCast};
+use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 use yew::*;
 use yew_icons::{Icon, IconData};
 
-use crate::{extensions::{DomStringMapExtensions, MouseEventExtensions}, services::{ToastManager, ToastState}};
+use crate::{extensions::DomStringMapExtensions, services::ToastManager};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct Props {

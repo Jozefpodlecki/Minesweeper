@@ -2,7 +2,7 @@ use std::fmt::{self, Display, Formatter};
 use log::*;
 use rand::{seq::{IndexedRandom, IteratorRandom}, RngExt};
 
-use crate::{game::{CellState, GameCell, GamePhase, GameState}, services::SystemClock};
+use crate::{game::{CellState, GameCell, GameGrid, GamePhase, GameState}, services::SystemClock};
 
 /// Describes *why* the AI selected a particular action.
 ///
@@ -82,20 +82,20 @@ impl AiAigent {
         match state.phase() {
             GamePhase::GameOver { .. } => return AiAction::Restart,
 
-            GamePhase::Initializing { rows, columns, .. } => {
-                return self.random_reveal(*rows, *columns);
+            GamePhase::Initializing { grid, .. } => {
+                return self.random_reveal(grid.rows, grid.columns);
             }
 
-            GamePhase::Playing { cells, rows, columns, .. } => {
-                if let Some(action) = self.try_deterministic(cells, *rows, *columns, state) {
+            GamePhase::Playing { grid, .. } => {
+                if let Some(action) = self.try_deterministic(grid, state) {
                     return action;
                 }
 
-                if let Some(action) = self.try_probabilistic(cells, *rows, *columns, state) {
+                if let Some(action) = self.try_probabilistic(grid, state) {
                     return action;
                 }
 
-                return self.random_from_hidden(cells);
+                return self.random_from_hidden(grid.cells());
             }
 
             _ => AiAction::None,
@@ -104,12 +104,10 @@ impl AiAigent {
 
     fn try_deterministic<SC: SystemClock + Clone>(
         &self,
-        cells: &[GameCell],
-        rows: usize,
-        columns: usize,
+        grid: &GameGrid,
         state: &GameState<SC>,
     ) -> Option<AiAction> {
-        for cell in cells.iter() {
+        for cell in grid.cells().iter() {
             let number = match cell.state {
                 CellState::Revealed => cell.neighbor_mines,
                 _ => continue,
@@ -119,20 +117,20 @@ impl AiAigent {
                 continue;
             }
 
-            let neighbors = state.neighbors(cells, cell.row_id, cell.column_id, rows, columns);
-
-            let flagged = neighbors.iter()
-                .filter(|c| matches!(c.state, CellState::Flagged))
-                .count();
-
-            let hidden: Vec<_> = neighbors.iter()
-                .filter(|c| matches!(c.state, CellState::Hidden))
-                .collect();
+            let (flagged, hidden) = grid
+                .neighbors(cell)
+                .fold((0, Vec::new()), |(mut flagged, mut hidden), c| {
+                    match c.state {
+                        CellState::Flagged => flagged += 1,
+                        CellState::Hidden => hidden.push(c),
+                        _ => {}
+                    }
+                    (flagged, hidden)
+                });
 
             if hidden.is_empty() {
                 continue;
             }
-
  
             if flagged == number {
                 let c = hidden[0];
@@ -156,30 +154,25 @@ impl AiAigent {
         None
     }
 
-    fn try_probabilistic<SC: SystemClock + Clone>(
-        &self,
-        cells: &[GameCell],
-        rows: usize,
-        columns: usize,
-        state: &GameState<SC>,
-    ) -> Option<AiAction> {
+    fn try_probabilistic<SC: SystemClock + Clone>(&self, grid: &GameGrid, state: &GameState<SC>) -> Option<AiAction> {
         let mut best: Option<(&GameCell, f64)> = None;
 
-        for cell in cells.iter().filter(|c| matches!(c.state, CellState::Revealed)) {
+        for cell in grid.cells().iter().filter(|c| matches!(c.state, CellState::Revealed)) {
             let number = cell.neighbor_mines;
             if number == 0 {
                 continue;
             }
 
-            let neighbors = state.neighbors(cells, cell.row_id, cell.column_id, rows, columns);
-
-            let flagged = neighbors.iter()
-                .filter(|c| matches!(c.state, CellState::Flagged))
-                .count();
-
-            let hidden: Vec<_> = neighbors.iter()
-                .filter(|c| matches!(c.state, CellState::Hidden))
-                .collect();
+            let (flagged, hidden) = grid
+                .neighbors(cell)
+                .fold((0, Vec::new()), |(mut flagged, mut hidden), c| {
+                    match c.state {
+                        CellState::Flagged => flagged += 1,
+                        CellState::Hidden => hidden.push(c),
+                        _ => {}
+                    }
+                    (flagged, hidden)
+                });
 
             if hidden.is_empty() {
                 continue;
@@ -239,28 +232,36 @@ impl AiAigent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::{GamePhase, GameCell, CellState};
+    use crate::{
+        game::{CellState, GamePhase},
+        testing::GameStateBuilder,
+    };
 
     #[test]
     fn should_restart_on_game_over() {
-        let state = GameState::game_over(true);
+        let state = GameStateBuilder::new(5, 5, 5)
+            .playing_with_random_mines(0, 0)
+            .mine(0, 0)
+            .mine(1, 1)
+            .game_over(false)
+            .build();
+
         let ai = AiAigent::new();
         let action = ai.next(&state);
+
         assert!(matches!(action, AiAction::Restart));
     }
 
     #[test]
     fn should_reveal_when_all_mines_flagged() {
-        let cells = vec![
-            GameCell::test(0, 0, 2, false, 1, CellState::Revealed),
-            GameCell::test(0, 1, 2, false, 1, CellState::Flagged),
-            GameCell::test(1, 0, 2, false, 1, CellState::Hidden),
-            GameCell::test(1, 1, 2, false, 1, CellState::Hidden),
-        ];
+        let state = GameStateBuilder::new(2, 2, 0)
+            .playing_with_random_mines(0, 0)
+            .revealed(0, 0)
+            .flagged(0, 1)
+            .neighbor_count(0, 0, 1)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 2, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         match action {
@@ -268,21 +269,20 @@ mod tests {
                 assert_eq!(reason, AiReason::Deterministic);
                 assert_eq!((row, column), (1, 0));
             }
-            _ => panic!(),
+            _ => panic!("Expected deterministic reveal"),
         }
     }
 
     #[test]
     fn should_flag_when_all_hidden_are_mines() {
-        let cells = vec![
-            GameCell::test(0, 0, 2, false, 2, CellState::Revealed),
-            GameCell::test(0, 1, 2, false, 0, CellState::Hidden),
-            GameCell::test(1, 0, 2, false, 0, CellState::Hidden),
-        ];
+        let state = GameStateBuilder::new(1, 2, 0)
+            .playing_with_mines(0, 0, &[1])
+            .revealed(0, 0)
+            .mine(0, 1)
+            .neighbor_count(0, 0, 1)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 2, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         match action {
@@ -290,43 +290,37 @@ mod tests {
                 assert_eq!(reason, AiReason::Deterministic);
                 assert!((row, column) == (0, 1) || (row, column) == (1, 0));
             }
-            _ => panic!(),
+            flag => panic!("Expected deterministic flag. got {flag}"),
         }
     }
 
     #[test]
     fn should_fall_back_to_random_reveal_when_no_logic() {
-        let cells = vec![
-            GameCell::test(0, 0, 2, false, 0, CellState::Hidden),
-            GameCell::test(0, 1, 2, false, 0, CellState::Hidden),
-        ];
+        let state = GameStateBuilder::new(1, 2, 0)
+            .playing_with_random_mines(0, 0)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 1, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         match action {
             AiAction::Reveal { row, column, reason } => {
                 assert_eq!(reason, AiReason::Random);
-                assert!(row < 1);
-                assert!(column < 2);
+                assert!(row < 1 && column < 2);
             }
-            _ => panic!(),
+            _ => panic!("Expected random reveal"),
         }
     }
 
     #[test]
     fn should_prefer_probabilistic_over_random_when_available() {
-        let cells = vec![
-            GameCell::test(0, 0, 2, false, 1, CellState::Revealed),
-            GameCell::test(0, 1, 2, false, 0, CellState::Hidden),
-            GameCell::test(1, 0, 2, false, 0, CellState::Hidden),
-        ];
+        let state = GameStateBuilder::new(2, 2, 0)
+            .playing_with_random_mines(0, 0)
+            .revealed(0, 0)
+            .neighbor_count(0, 0, 1)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 2, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         match action {
@@ -334,20 +328,19 @@ mod tests {
                 assert_eq!(reason, AiReason::Probabilistic);
                 assert!((row, column) == (0, 1) || (row, column) == (1, 0));
             }
-            _ => panic!(),
+            flag => panic!("Expected probabilistic reveal. got {flag}"),
         }
     }
 
     #[test]
     fn should_return_none_when_no_hidden_cells_exist() {
-        let cells = vec![
-            GameCell::test(0, 0, 1, false, 0, CellState::Revealed),
-            GameCell::test(0, 1, 1, false, 0, CellState::Revealed),
-        ];
+        let state = GameStateBuilder::new(1, 2, 0)
+            .playing_with_random_mines(0, 0)
+            .revealed(0, 0)
+            .revealed(0, 1)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 1, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         assert!(matches!(action, AiAction::None));
@@ -355,30 +348,30 @@ mod tests {
 
     #[test]
     fn should_handle_initializing_phase_within_bounds() {
-        let state = GameState::initializing(5, 5);
-        let ai = AiAigent::new();
+        let state = GameStateBuilder::new(5, 5, 5)
+            .initializing()
+            .build();
 
+        let ai = AiAigent::new();
         let action = ai.next(&state);
 
         match action {
             AiAction::Reveal { row, column, reason } => {
                 assert_eq!(reason, AiReason::Random);
-                assert!(row < 5);
-                assert!(column < 5);
+                assert!(row < 5 && column < 5);
             }
-            _ => panic!(),
+            _ => panic!("Expected random reveal"),
         }
     }
 
     #[test]
     fn should_not_flag_or_reveal_when_no_relevant_cells() {
-        let cells = vec![
-            GameCell::test(0, 0, 1, false, 0, CellState::Revealed),
-        ];
+        let state = GameStateBuilder::new(1, 1, 0)
+            .playing_with_random_mines(0, 0)
+            .revealed(0, 0)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 1, 1);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         assert!(matches!(action, AiAction::None));
@@ -386,16 +379,13 @@ mod tests {
 
     #[test]
     fn probabilistic_selects_lowest_risk_cell_among_multiple() {
-        let cells = vec![
-            GameCell::test(0, 0, 2, false, 2, CellState::Revealed),
-            GameCell::test(0, 1, 2, false, 0, CellState::Hidden),
-            GameCell::test(1, 0, 2, false, 0, CellState::Hidden),
-            GameCell::test(1, 1, 2, false, 0, CellState::Hidden),
-        ];
+        let state = GameStateBuilder::new(2, 2, 0)
+            .playing_with_random_mines(0, 0)
+            .revealed(0, 0)
+            .neighbor_count(0, 0, 2)
+            .build();
 
-        let state = GameState::playing(cells.clone(), 2, 2);
         let ai = AiAigent::new();
-
         let action = ai.next(&state);
 
         match action {
@@ -405,7 +395,7 @@ mod tests {
                     || (row, column) == (1, 0)
                     || (row, column) == (1, 1));
             }
-            _ => panic!(),
+            _ => panic!("Expected probabilistic reveal"),
         }
     }
 }

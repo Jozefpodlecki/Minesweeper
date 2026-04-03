@@ -1,22 +1,17 @@
 use std::fmt::{self, Display, Formatter};
 use chrono::{DateTime, Duration, Utc};
-
-use crate::{game::{GameCell}};
+use crate::game::{GameCell, GameGrid};
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub enum GamePhase {
     #[default]
     Idle,
     Initializing {
-        cells: Box<[GameCell]>,
-        rows: usize,
-        columns: usize,
+        grid: GameGrid,
         mines_count: usize,
     },
     Playing {
-        cells: Box<[GameCell]>,
-        rows: usize,
-        columns: usize,
+        grid: GameGrid,
         mines_count: usize,
         revealed_count: usize,
         flags_count: usize,
@@ -24,48 +19,42 @@ pub enum GamePhase {
     },
     GameOver {
         has_won: bool,
-        cells: Box<[GameCell]>,
-        rows: usize,
-        columns: usize,
+        grid: GameGrid,
+        last_cell: Option<GameCell>,
         duration: Duration,
         started_at: DateTime<Utc>,
         mines_count: usize,
         revealed_count: usize,
         flags_count: usize,
-    }
+    },
 }
 
 impl Display for GamePhase {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            GamePhase::Idle => {
-                write!(f, "Idle")
-            }
+            GamePhase::Idle => write!(f, "Idle"),
 
-            GamePhase::Initializing { rows, columns, mines_count, .. } => {
+            GamePhase::Initializing { grid, mines_count } => {
                 write!(
                     f,
                     "Initializing | {}x{} | mines: {}",
-                    rows, columns, mines_count
+                    grid.rows, grid.columns, mines_count
                 )
             }
 
             GamePhase::Playing {
-                rows,
-                columns,
+                grid,
                 mines_count,
                 revealed_count,
                 flags_count,
                 started_at,
-                ..
             } => {
-                let elapsed = chrono::Utc::now() - *started_at;
-
+                let elapsed = Utc::now() - *started_at;
                 write!(
                     f,
                     "Playing | {}x{} | mines: {} | revealed: {} | flags: {} | elapsed: {}s",
-                    rows,
-                    columns,
+                    grid.rows,
+                    grid.columns,
                     mines_count,
                     revealed_count,
                     flags_count,
@@ -75,8 +64,7 @@ impl Display for GamePhase {
 
             GamePhase::GameOver {
                 has_won,
-                rows,
-                columns,
+                grid,
                 duration,
                 mines_count,
                 revealed_count,
@@ -87,8 +75,8 @@ impl Display for GamePhase {
                     f,
                     "GameOver | {} | {}x{} | mines: {} | revealed: {} | flags: {} | duration: {}s",
                     if *has_won { "WIN" } else { "LOSS" },
-                    rows,
-                    columns,
+                    grid.rows,
+                    grid.columns,
                     mines_count,
                     revealed_count,
                     flags_count,

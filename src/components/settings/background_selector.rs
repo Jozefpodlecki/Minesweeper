@@ -77,7 +77,7 @@ pub fn background_selector(props: &Props) -> Html {
 
                         match api_client.get_image(url.as_str()).await {
                             Ok(blob) => {
-                                match ApiClient::blob_to_data_url(&blob).await {
+                                match blob.to_data_url().await {
                                     Ok(data_url) => {
                                         
                                         let value = BackgroundSource::Url {
