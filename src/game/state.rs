@@ -1,32 +1,21 @@
 use std::hint::unreachable_unchecked;
 use chrono::{Duration, Utc};
+use log::*;
 use rand::RngExt;
 use yew::UseStateHandle;
 use crate::{
-    game::{logic, model::{CellState, GameCell, SavedGameState}, phase::GamePhase, GameGrid, GameSettings},
+    game::{model::{CellState, GameCell, SavedGameState}, phase::GamePhase, GameGrid, GameSettings, SavedGameCell},
     models::{GameDifficulty, GameResult, Settings},
-    services::{DefaultSystemClock, SystemClock},
+    services::{DefaultSystemClock, StorageAccessor, SystemClock},
 };
 
 pub type DefaultGameManager = GameManager<DefaultSystemClock>;
 
-    // pub fn from_difficulty(rows: usize, columns: usize, difficulty: GameDifficulty) -> Self {
-    //     let mut rng = rand::rng();
-
-    //     let density = match difficulty {
-    //         GameDifficulty::Easy => rng.random_range(0.10..0.14),
-    //         GameDifficulty::Medium => rng.random_range(0.15..0.19),
-    //         GameDifficulty::Hard => rng.random_range(0.24..0.29),
-    //     };
-
-    //     let mines_count = (rows * columns) as f64 * density;
-
-    //     Self { rows, columns, mines_count: mines_count as usize }
-    // }
 
 #[derive(Clone)]
 pub struct GameManager<SC: SystemClock> {
     clock: SC,
+    storage: StorageAccessor<SavedGameState>,
     settings: UseStateHandle<Settings>
 }
 
@@ -37,32 +26,52 @@ impl<SC: SystemClock> PartialEq for GameManager<SC> {
 }
 
 impl<SC: Clone + SystemClock> GameManager<SC> {
-    pub fn new(clock: SC, settings: UseStateHandle<Settings>) -> Self {
-        Self { clock, settings  }
+    pub fn new(clock: SC, storage: StorageAccessor<SavedGameState>, settings: UseStateHandle<Settings>) -> Self {
+        Self { clock, storage, settings  }
     }
 
     pub fn create(&self) -> GameState<SC> {
-        let settings = &*self.settings;
 
+        if self.settings.persist_game {
+            if let Some(saved) = self.storage.get() {
+                GameState::from_saved(self.clock.clone(), saved)
+            }
+            else {
+                self.create_with_difficulty(self.settings.difficulty)    
+            }
+        }
+        else {
+            self.create_with_difficulty(self.settings.difficulty)
+        }
+    }
+
+    pub fn create_with_difficulty(&self, difficulty: GameDifficulty) -> GameState<SC> {
         let rows = 15;
-        let columns = 15;
-        let mut rng = rand::rng();
+        let cols = 15;
+        let mines_count = self.calculate_mines_count(rows, cols, difficulty);
+        info!("mines_count={mines_count}");
+        let settings = GameSettings {
+            rows,
+            columns: cols,
+            mines_count,
+        };
+        
+        GameState::new(self.clock.clone(), settings)
+    }
 
-        let density = match settings.difficulty {
+    fn calculate_mines_count(&self, rows: usize, cols: usize, difficulty: GameDifficulty) -> usize {
+        let density = self.get_density_for_difficulty(difficulty);
+        let total_cells = (rows * cols) as f64;
+        (total_cells * density) as usize
+    }
+
+    fn get_density_for_difficulty(&self, difficulty: GameDifficulty) -> f64 {
+        let mut rng = rand::rng();
+        match difficulty {
             GameDifficulty::Easy => rng.random_range(0.10..0.14),
             GameDifficulty::Medium => rng.random_range(0.15..0.19),
             GameDifficulty::Hard => rng.random_range(0.24..0.29),
-        };
-
-        let mines_count = (rows * columns) as f64 * density;
-
-        let settings = GameSettings {
-            rows,
-            columns,
-            mines_count: mines_count as usize
-        };
-
-        GameState::new(self.clock.clone(), settings)
+        }
     }
 }
 
@@ -87,6 +96,20 @@ impl<SC: Clone + SystemClock> GameState<SC> {
         Self { clock, settings, phase: GamePhase::default() }
     }
 
+    pub fn from_saved(clock: SC, saved: SavedGameState) -> Self {
+        Self {
+            clock,
+            settings: saved.settings.clone(),
+            phase: GamePhase::Playing {
+                grid: GameGrid::from_saved(saved.grid),
+                mines_count: saved.mines_count,
+                revealed_count: saved.revealed_count,
+                flags_count: saved.flags_count,
+                started_at: saved.started_at
+            }
+        }
+    }
+
     /// Start a new game
     pub fn play(&self) -> Self {
         let GameSettings { rows, columns, mines_count } = self.settings;
@@ -103,6 +126,16 @@ impl<SC: Clone + SystemClock> GameState<SC> {
     pub fn restart(&self) -> Self {
         match &self.phase {
             GamePhase::GameOver { grid, mines_count, .. } => {
+                let mut new_grid = grid.clone();
+                new_grid.reset();
+
+                Self {
+                    clock: self.clock.clone(),
+                    settings: self.settings.clone(),
+                    phase: GamePhase::Initializing { grid: new_grid, mines_count: *mines_count },
+                }
+            }
+            GamePhase::Playing { grid, mines_count, .. } => {
                 let mut new_grid = grid.clone();
                 new_grid.reset();
 
@@ -254,12 +287,29 @@ impl<SC: Clone + SystemClock> GameState<SC> {
 
     pub fn to_state(&self) -> SavedGameState {
         match &self.phase {
-            GamePhase::Playing { grid, mines_count, revealed_count, started_at, .. } => SavedGameState {
-                cells: grid.cells().clone().into(),
-                rows: grid.rows,
-                columns: grid.columns,
+            GamePhase::Playing {
+                grid,
+                mines_count,
+                revealed_count,
+                started_at,
+                flags_count,
+                ..
+            } => SavedGameState {
+                grid: super::SavedGameGrid {
+                    cells: grid.cells().into_iter().map(|pr| SavedGameCell {
+                        id: pr.id,
+                        row_id: pr.row_id,
+                        column_id: pr.column_id,
+                        is_mine: pr.is_mine,
+                        state: pr.state
+                    }).collect(),
+                    rows: grid.rows,
+                    columns: grid.columns,
+                },
+                settings: self.settings.clone(),
                 mines_count: *mines_count,
                 revealed_count: *revealed_count,
+                flags_count: *flags_count,
                 started_at: *started_at,
             },
             _ => unsafe { unreachable_unchecked() },

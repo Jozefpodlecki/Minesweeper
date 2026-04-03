@@ -50,6 +50,10 @@ impl Repository {
         }
     }
 
+    pub fn clear_game_session(&self) {
+        unsafe { self.local_storage.remove_item("state").unwrap_unchecked(); }
+    }
+
     pub fn save_game_session(&self, value: SavedGameState) {
         unsafe {
             let json = serde_json::to_string(&value).unwrap_unchecked();

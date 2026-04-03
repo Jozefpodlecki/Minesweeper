@@ -11,13 +11,12 @@ use crate::{components::{GameBoard, Timer}, game::*, models::*, services::{AiAct
 #[function_component(AiPlaying)]
 pub fn ai_playing() -> Html {
     let game_manager = unsafe { use_context::<DefaultGameManager>().unwrap_unchecked() };
-
-    let game_state = use_state(|| game_manager.create() );
-    let runner = use_state(|| Rc::new(AiAigent::new()));
+    let game_state = use_state(|| game_manager.create_with_difficulty(GameDifficulty::Hard) );
+    let ai_agent = use_state(|| Rc::new(AiAigent::new()));
 
     {
         let game_state = game_state.clone();
-        let runner = runner.clone();
+        let ai_agent = ai_agent.clone();
 
         use_effect(
             move || {
@@ -33,7 +32,7 @@ pub fn ai_playing() -> Html {
 
                 *timeout_callback.borrow_mut() = Some(Closure::wrap(Box::new(move || {
  
-                    let action = runner.next(&game_state);
+                    let action = ai_agent.next(&game_state);
                     debug!("{action}");
 
                     match action {

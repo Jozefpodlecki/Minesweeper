@@ -70,11 +70,15 @@ pub fn app(props: &AppProps) -> Html {
 
     }
 
-    let settings_accessor = StorageAccessor::new("settings", local_storage.clone());
-    let settings_state = use_state(Settings::default);
+    let settings_accessor: StorageAccessor<Settings> = StorageAccessor::new("settings", local_storage.clone());
+    let settings_state = use_state(|| settings_accessor.get().unwrap_or_default());
     let settings_manager = SettingsManager::new(settings_state.clone(), settings_accessor);
     settings_manager.init();
-    let game_manager = DefaultGameManager::new(clock.clone(), settings_state.clone());
+    let state_accessor = StorageAccessor::new("state", local_storage.clone());
+    let game_manager = DefaultGameManager::new(
+        clock.clone(),
+        state_accessor,
+        settings_state.clone());
     
     let state: UseReducerHandle<ToastState> = use_reducer(Default::default);
     let toast_manager = ToastManager::new(state.clone());

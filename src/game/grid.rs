@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::{Deref, DerefMut, Index, IndexMut}, rc::Rc}
 
 use rand::{rng, seq::SliceRandom};
 
-use crate::game::{CellState, GameCell};
+use crate::game::{CellState, GameCell, SavedGameCell, SavedGameGrid};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GameCells(Rc<[GameCell]>);
@@ -75,6 +75,18 @@ impl GameGrid {
             .collect::<Vec<_>>()
             .into_boxed_slice();
         Self { cells, rows, columns }
+    }
+
+    pub fn from_saved(value: SavedGameGrid) -> Self {
+        let mut grid = Self {
+            cells: value.cells.into_iter().map(GameCell::from_saved).collect(),
+            rows: value.rows,
+            columns: value.columns,
+        };
+
+        grid.calculate_neighbor_counts();
+
+        grid
     }
 
     pub fn cells(&self) -> &[GameCell] {

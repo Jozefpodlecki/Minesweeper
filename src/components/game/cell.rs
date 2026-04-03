@@ -24,6 +24,10 @@ pub fn game_cell(props: &Props) -> Html {
     let debug_mode = true;
     let base_class = "w-10 h-10 flex items-center justify-center font-bold transition-colors";
 
+    let prevent_default = Callback::from(move |event: MouseEvent| {
+        event.prevent_default();
+    });
+
     let (state, classes, content, click_handler, context_handler) = match cell.state {
         CellState::Revealed => {
             let content = if cell.is_mine {
@@ -51,15 +55,17 @@ pub fn game_cell(props: &Props) -> Html {
             };
 
             let classes = format!("{} cursor-default {}", bg_class, base_class);
-            ("revealed", classes, content, Callback::noop(), Callback::noop())
+            ("revealed", classes, content, Callback::noop(), prevent_default)
         }
 
         CellState::Hidden => {
+            let hover_classes = "hover:bg-gray-400/50 hover:scale-105 transition-all duration-150 ease-in-out";
+
             if debug_mode && cell.is_mine {
-                let classes = format!("{} bg-gray-300/70 text-red-600", base_class);
+                let classes = format!("{} bg-gray-300/70 text-red-600 {}", base_class, hover_classes);
                 ("hidden", classes, html! { <Icon data={IconData::LUCIDE_BOMB} width={"20px"} /> }, on_reveal.clone(), on_toggle_flag.clone())
             } else {
-                let classes = format!("{} bg-gray-300/70 text-black", base_class);
+                let classes = format!("{} bg-gray-300/70 text-black {}", base_class, hover_classes);
                 ("hidden", classes, html! {}, on_reveal.clone(), on_toggle_flag.clone())
             }
         }
